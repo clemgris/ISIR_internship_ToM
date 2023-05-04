@@ -54,12 +54,12 @@ class BaysesianTeacher(Teacher):
         for u,r in zip(traj[0], traj[1]):
             for type in range(self.beliefs.shape[0]):
                 # Compute the policy from the type and the learner beliefs
-                policy_type = compute_policy(projection(self.learner_beliefs, type), self.env)
+                policy_type = compute_policy(projection(self.learner_beliefs.copy(), type), self.env)
                 # Update belief on the type of learner
                 self.beliefs[type] *= policy_type[u]
                 self.beliefs /= self.beliefs.sum()
-                # Update estimate of the of the learner beliefs
-                self.learner_beliefs = bayesian_update(self.learner_beliefs, u, r)
+            # Update estimate of the of the learner beliefs
+            self.learner_beliefs = bayesian_update(self.learner_beliefs, u, r)
     
     def predict_learner_type(self):
         # Return type whose belief is the highest

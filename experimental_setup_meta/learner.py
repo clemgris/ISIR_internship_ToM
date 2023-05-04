@@ -15,7 +15,7 @@ def projection(beliefs, learner_type):
     projected_beliefs = beliefs.copy()
     # Projection into the constrained space
     if learner_type > 0:
-        if np.count_nonzero(projected_beliefs[:, 1] == 1) == learner_type:
+        if np.count_nonzero(np.isclose(projected_beliefs[:, 1], 1.)) == learner_type:
             for ii in range(projected_beliefs.shape[0]):
                 if projected_beliefs[ii, 1] != 1:
                     projected_beliefs[ii, :] = [1, 0]
@@ -23,6 +23,10 @@ def projection(beliefs, learner_type):
 
 def bayesian_update(beliefs, a, r):
     updated_beliefs = beliefs.copy()
+    # Cannot change his beliefs if 100% sure even if wrong
+    if np.isclose(updated_beliefs[a, 0], 1.) or np.isclose(updated_beliefs[a, 1], 1.):
+        return updated_beliefs
+    # Update uncertain beliefs
     for rr in range(updated_beliefs.shape[1]):
         updated_beliefs[a, rr] *= (rr == r)
     # Normalize
