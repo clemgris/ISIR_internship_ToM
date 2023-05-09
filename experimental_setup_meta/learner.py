@@ -1,7 +1,6 @@
 import numpy as np
 from utils import draw, Shannon_entropy
 
-
 def compute_policy(beliefs, env):
     if np.sum(Shannon_entropy(beliefs, axis=1)) == 0:
         R = np.array([np.where(belief == 1)[0][0] for belief in beliefs])

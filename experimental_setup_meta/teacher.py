@@ -43,6 +43,7 @@ class BaysesianTeacher(Teacher):
     def __init__(self, env, num_types):
         super().__init__(env)
         self.num_types = num_types
+        self.num_demo_type = num_types
         self.beliefs = np.ones(self.num_types) / self.num_types
         self.init_env(env)
     
@@ -83,11 +84,11 @@ class BaysesianTeacher(Teacher):
         demo_zero = (np.arange(self.env.n_buttons), self.env.R)
         demonstrations = [demo_zero]
         idx_music = np.where(np.isclose(self.env.R, 1.))[0]
-        for type in range(1, self.num_types):
+        for type in range(1, self.num_demo_type):
             demo = (np.random.choice(idx_music, size=type, replace=False), [1.] * type)
             demonstrations.append(demo)
 
-        utilities = np.zeros(self.num_types)
+        utilities = np.zeros(self.num_demo_type)
         # Compute utilities of each demonstration
         for ii,demo in enumerate(demonstrations):
             if method == 'argmax':
@@ -102,4 +103,5 @@ class BaysesianTeacher(Teacher):
         return demonstrations[selected_idx]
 
 
-        
+def ToMNetTeacher(Teacher):
+    pass

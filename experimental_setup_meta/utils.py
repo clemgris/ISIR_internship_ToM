@@ -21,6 +21,12 @@ def render_policy(policy):
     plt.yticks([])
     plt.show()
 
+def render_trajectory(env, traj):
+    for a,_ in zip(traj[0], traj[1]):
+        env.render()
+        plt.scatter(a + 0.5, 0.5, c='b')
+        plt.show()
+
 def Shannon_entropy(proba_dist,axis=None):
     # Compute the Shannon Entropy 
     tab = proba_dist * np.log2(proba_dist)
