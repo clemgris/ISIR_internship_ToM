@@ -3,11 +3,9 @@ from utils import draw
 from learner import compute_policy, bayesian_update, projection
 
 def cost(demo, alpha=0.02):
-    return - alpha * len(demo[0])
+    return alpha * len(demo[0])
 
 class Teacher:
-    policy = None
-    env = None
 
     def __init__(self, env):
         self.env = env
@@ -36,9 +34,6 @@ class NaiveTeacher(Teacher):
 
 # Bayesian model of the learner
 class BaysesianTeacher(Teacher):
-    beliefs = None
-    learner_beliefs = None
-    env = None
 
     def __init__(self, env, num_types):
         super().__init__(env)
@@ -50,6 +45,14 @@ class BaysesianTeacher(Teacher):
     def init_env(self, env):
         self.env = env
         self.learner_beliefs = 0.5 * np.ones((self.env.n_buttons, 2))
+        
+        # Create possible demonstrations
+        demo_zero = (np.arange(self.env.n_buttons), self.env.R)
+        self.demonstrations = [demo_zero]
+        idx_music = np.where(np.isclose(self.env.R, 1.))[0]
+        for type in range(1, self.num_demo_type):
+            demo = (np.random.choice(idx_music, size=type, replace=False), [1.] * type)
+            self.demonstrations.append(demo)
 
     def observe(self, traj):
         for u,r in zip(traj[0], traj[1]):
@@ -59,7 +62,7 @@ class BaysesianTeacher(Teacher):
                 # Update belief on the type of learner
                 self.beliefs[type] *= policy_type[u]
                 self.beliefs /= self.beliefs.sum()
-            # Update estimate of the of the learner beliefs
+            # Update estimate of the learner beliefs
             self.learner_beliefs = bayesian_update(self.learner_beliefs, u, r)
     
     def predict_learner_type(self):
@@ -76,31 +79,23 @@ class BaysesianTeacher(Teacher):
         predicted_reward = np.sum(predicted_policy * self.env.R)
         return predicted_reward
     
-    def demonstrate(self, method='argmax', alpha=0):
+    def demonstrate(self, method='MAP', alpha=0):
         # Predict learner type
         predicted_type = self.predict_learner_type()
 
-        # Create possible demonstrations
-        demo_zero = (np.arange(self.env.n_buttons), self.env.R)
-        demonstrations = [demo_zero]
-        idx_music = np.where(np.isclose(self.env.R, 1.))[0]
-        for type in range(1, self.num_demo_type):
-            demo = (np.random.choice(idx_music, size=type, replace=False), [1.] * type)
-            demonstrations.append(demo)
-
-        utilities = np.zeros(self.num_demo_type)
         # Compute utilities of each demonstration
-        for ii,demo in enumerate(demonstrations):
-            if method == 'argmax':
-                utilities[ii] = self.predict_reward(demo, predicted_type) + cost(demo, alpha=alpha)
-            elif method == 'mean':
-                utilities[ii] = np.sum([self.predict_reward(demo, type) * self.beliefs[type] for type in range(self.num_types)]) + cost(demo, alpha=alpha)
+        utilities = np.zeros(self.num_demo_type)
+        for ii,demo in enumerate(self.demonstrations):
+            if method == 'MAP':
+                utilities[ii] = self.predict_reward(demo, predicted_type) - cost(demo, alpha=alpha)
+            elif method == 'Bayesian':
+                utilities[ii] = np.sum([self.predict_reward(demo, type) * self.beliefs[type] for type in range(self.num_types)]) - cost(demo, alpha=alpha)
             else:
                 raise ValueError('Unknown method to compute the utility')
         
         argmax_set = np.where(np.isclose(utilities, np.max(utilities)))[0]
         selected_idx = np.random.choice(argmax_set)
-        return demonstrations[selected_idx]
+        return self.demonstrations[selected_idx]
 
 
 def ToMNetTeacher(Teacher):
