@@ -7,10 +7,12 @@ def cost(demo, alpha=0.02):
 
 class Teacher:
 
-    def __init__(self, env):
+    def __init__(self, env, num_types):
         self.env = env
         # Master the toy
         self.policy = env.R / env.R.sum()
+        self.num_types = num_types
+        self.num_demo_type = self.num_types
     
     def act(self, size=1):
         actions = []
@@ -21,30 +23,8 @@ class Teacher:
             rewards.append(self.env.eval(a))
         return actions, rewards
 
-    def demonstrate(self):
-        pass
-
-# Demonstrate as he acts
-class NaiveTeacher(Teacher):
-    def __init__(self, env):
-        super().__init__(env)
-        
-    def demonstrate(self, size=1):
-        return self.act(size=size)
-
-# Bayesian model of the learner
-class BaysesianTeacher(Teacher):
-
-    def __init__(self, env, num_types):
-        super().__init__(env)
-        self.num_types = num_types
-        self.num_demo_type = num_types
-        self.beliefs = np.ones(self.num_types) / self.num_types
-        self.init_env(env)
-    
     def init_env(self, env):
         self.env = env
-        self.learner_beliefs = 0.5 * np.ones((self.env.n_buttons, 2))
         
         # Create possible demonstrations
         demo_zero = (np.arange(self.env.n_buttons), self.env.R)
@@ -53,6 +33,55 @@ class BaysesianTeacher(Teacher):
         for type in range(1, self.num_demo_type):
             demo = (np.random.choice(idx_music, size=type, replace=False), [1.] * type)
             self.demonstrations.append(demo)
+
+    def demonstrate(self):
+        pass
+    
+# Do not have a model of the learner
+class NaiveTeacher(Teacher):
+    def __init__(self, env, num_types):
+        super().__init__(env, num_types)
+        self.init_env(env)
+
+    def init_env(self, env):
+        return super().init_env(env)
+        
+    def demonstrate(self, method='Uniform', alpha=None):
+        # Choose a random demonstration uniformally
+        if method == 'Uniform':
+            selected_idx = np.random.randint(0, self.num_demo_type)
+        # Choose demonstration to satify the learner in any cases
+        elif method == 'No_utility':
+            demo_values = []
+            for demo_type in range(self.num_demo_type):
+                predicted_reward = 0
+                for type in range(self.num_types):
+                    learner_beliefs_demo_env = 0.5 * np.ones((self.env.n_buttons, 2))
+                    for a,r in zip(self.demonstrations[demo_type][0], self.demonstrations[demo_type][1]):
+                        learner_beliefs_demo_env = projection(bayesian_update(learner_beliefs_demo_env, a, r), type)
+                    predicted_policy = compute_policy(learner_beliefs_demo_env, self.env)
+                    predicted_reward += np.sum(predicted_policy * self.env.R)
+                demo_values.append(predicted_reward)
+            argmax_set = np.where(np.isclose(demo_values, np.max(demo_values)))[0]
+            selected_idx = np.random.choice(argmax_set)
+            if selected_idx != 0:
+                print(selected_idx, demo_values)
+                assert(False)
+        else:
+            raise ValueError('Unknown method')
+        return self.demonstrations[selected_idx]
+
+# Bayesian model of the learner
+class BaysesianTeacher(Teacher):
+
+    def __init__(self, env, num_types):
+        super().__init__(env, num_types)
+        self.beliefs = np.ones(self.num_types) / self.num_types
+        self.init_env(env)
+    
+    def init_env(self, env):
+        super().init_env(env)
+        self.learner_beliefs = 0.5 * np.ones((self.env.n_buttons, 2))
 
     def observe(self, traj):
         for u,r in zip(traj[0], traj[1]):
@@ -91,7 +120,7 @@ class BaysesianTeacher(Teacher):
             elif method == 'Bayesian':
                 utilities[ii] = np.sum([self.predict_reward(demo, type) * self.beliefs[type] for type in range(self.num_types)]) - cost(demo, alpha=alpha)
             else:
-                raise ValueError('Unknown method to compute the utility')
+                raise ValueError('Unknown method')
         
         argmax_set = np.where(np.isclose(utilities, np.max(utilities)))[0]
         selected_idx = np.random.choice(argmax_set)
