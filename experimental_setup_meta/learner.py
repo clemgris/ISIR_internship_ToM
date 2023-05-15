@@ -1,7 +1,9 @@
 import numpy as np
 from utils import draw, Shannon_entropy
 
-def compute_policy(beliefs, env):
+from environment import ButtonsToy
+
+def compute_policy(beliefs: np.array, env: ButtonsToy) -> np.array:
     if np.sum(Shannon_entropy(beliefs, axis=1)) == 0:
         R = np.array([np.where(belief == 1)[0][0] for belief in beliefs])
         greedy_policy = R / np.sum(R)
@@ -10,7 +12,7 @@ def compute_policy(beliefs, env):
         uniform_policy = np.ones_like(env.R) / env.n_buttons
         return uniform_policy
 
-def projection(beliefs, learner_type):
+def projection(beliefs: np.array, learner_type: int) -> np.array:
     projected_beliefs = beliefs.copy()
     # Projection into the constrained space
     if learner_type > 0:
@@ -20,7 +22,7 @@ def projection(beliefs, learner_type):
                     projected_beliefs[ii, :] = [1, 0]
     return projected_beliefs
 
-def bayesian_update(beliefs, a, r):
+def bayesian_update(beliefs: np.array, a: int, r: int) -> np.array:
     updated_beliefs = beliefs.copy()
     # Update uncertain beliefs
     for rr in range(updated_beliefs.shape[1]):
@@ -30,15 +32,11 @@ def bayesian_update(beliefs, a, r):
     return updated_beliefs
 
 class Learner:
-    type = None
-    beliefs = None
-    policy = None
-    env = None
 
-    def __init__(self, type):
+    def __init__(self, type: int) -> None:
         self.type = type
     
-    def init_env(self, env):
+    def init_env(self, env: ButtonsToy) -> None:
         if self.type > env.n_music:
             raise KeyError("Undefined type of learner on this environment")
         self.env = env
@@ -46,13 +44,13 @@ class Learner:
         self.beliefs = 0.5 * np.ones((self.env.n_buttons, 2))
         self.policy = compute_policy(self.beliefs, self.env)
     
-    def observe(self, traj):
+    def observe(self, traj: tuple) -> None:
         for a,r in zip(traj[0], traj[1]):
             # Update beliefs
             self.beliefs = bayesian_update(self.beliefs, a, r)
         self.policy = compute_policy(projection(self.beliefs, self.type), self.env)
 
-    def act(self, size=1):
+    def act(self, size: int=1) -> tuple:
         actions = []
         rewards = []
         for _ in range(size):
