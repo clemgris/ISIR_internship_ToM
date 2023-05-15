@@ -22,12 +22,9 @@ def projection(beliefs, learner_type):
 
 def bayesian_update(beliefs, a, r):
     updated_beliefs = beliefs.copy()
-    # Cannot change his beliefs if 100% sure even if wrong
-    if np.isclose(updated_beliefs[a, 0], 1.) or np.isclose(updated_beliefs[a, 1], 1.):
-        return updated_beliefs
     # Update uncertain beliefs
     for rr in range(updated_beliefs.shape[1]):
-        updated_beliefs[a, rr] *= (rr == r)
+        updated_beliefs[a, rr] *= rr == r
     # Normalize
     updated_beliefs[a, :] /= updated_beliefs[a, :].sum()
     return updated_beliefs
@@ -53,9 +50,7 @@ class Learner:
         for a,r in zip(traj[0], traj[1]):
             # Update beliefs
             self.beliefs = bayesian_update(self.beliefs, a, r)
-            # Projection into the constraint space
-            self.beliefs = projection(self.beliefs, self.type)
-        self.policy = compute_policy(self.beliefs, self.env)
+        self.policy = compute_policy(projection(self.beliefs, self.type), self.env)
 
     def act(self, size=1):
         actions = []
@@ -66,8 +61,6 @@ class Learner:
             r = self.env.eval(a)
             # Update beliefs
             self.observe(([a], [r]))
-            # Update policy
-            self.policy = compute_policy(self.beliefs, self.env)
             # Append to the trajectory
             actions.append(a)
             rewards.append(r)
