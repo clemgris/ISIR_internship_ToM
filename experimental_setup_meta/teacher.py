@@ -1,20 +1,21 @@
 import numpy as np
 from utils import draw
 from learner import compute_policy, bayesian_update, projection
+from environment import ButtonsToy
 
-def cost(demo, alpha=0.02):
+def cost(demo: tuple, alpha=0.02) -> float:
     return alpha * len(demo[0])
 
 class Teacher:
 
-    def __init__(self, env, num_types):
+    def __init__(self, env: ButtonsToy, num_types: int) -> None:
         self.env = env
         # Master the toy
         self.policy = env.R / env.R.sum()
         self.num_types = num_types
         self.num_demo_type = self.num_types
     
-    def act(self, size=1):
+    def act(self, size: int=1) -> tuple:
         actions = []
         rewards = []
         for _ in range(size):
@@ -23,7 +24,7 @@ class Teacher:
             rewards.append(self.env.eval(a))
         return actions, rewards
 
-    def init_env(self, env):
+    def init_env(self, env: ButtonsToy) -> None:
         self.env = env
         
         # Create possible demonstrations
@@ -39,14 +40,14 @@ class Teacher:
     
 # Do not have a model of the learner
 class NaiveTeacher(Teacher):
-    def __init__(self, env, num_types):
+    def __init__(self, env: ButtonsToy, num_types: int) -> None:
         super().__init__(env, num_types)
         self.init_env(env)
 
-    def init_env(self, env):
+    def init_env(self, env:ButtonsToy) -> None:
         return super().init_env(env)
         
-    def demonstrate(self, method='Uniform', alpha=None):
+    def demonstrate(self, method: str='Uniform', alpha: float=None) -> tuple:
         # Choose a random demonstration uniformally
         if method == 'Uniform':
             selected_idx = np.random.randint(0, self.num_demo_type)
@@ -74,17 +75,17 @@ class NaiveTeacher(Teacher):
 # Bayesian model of the learner
 class BaysesianTeacher(Teacher):
 
-    def __init__(self, env, num_types, eps=1e-5):
+    def __init__(self, env: ButtonsToy, num_types: int, eps: float=1e-5) -> None:
         super().__init__(env, num_types)
         self.beliefs = np.ones(self.num_types) / self.num_types
         self.eps = eps
         self.init_env(env)
     
-    def init_env(self, env):
+    def init_env(self, env: ButtonsToy) -> None:
         super().init_env(env)
         self.learner_beliefs = 0.5 * np.ones((self.env.n_buttons, 2))
 
-    def observe(self, traj):
+    def observe(self, traj: tuple) -> None:
         for u,r in zip(traj[0], traj[1]):
             for type in range(self.beliefs.shape[0]):
                 # Compute the policy from the type and the learner beliefs
@@ -98,13 +99,13 @@ class BaysesianTeacher(Teacher):
             # Update estimate of the learner beliefs
             self.learner_beliefs = bayesian_update(self.learner_beliefs, u, r)
     
-    def predict_learner_type(self):
+    def predict_learner_type(self) -> int:
         # Return type whose belief is the highest
         argmax_set = np.where(np.isclose(self.beliefs, np.max(self.beliefs)))[0]
         predicted_type = np.random.choice(argmax_set)
         return predicted_type
     
-    def predict_reward(self, demonstration, predicted_type):
+    def predict_reward(self, demonstration: tuple, predicted_type: int) -> float:
         learner_beliefs_demo_env = self.learner_beliefs.copy()
         for a,r in zip(demonstration[0], demonstration[1]):
             learner_beliefs_demo_env = projection(bayesian_update(learner_beliefs_demo_env, a, r), predicted_type)
@@ -112,7 +113,7 @@ class BaysesianTeacher(Teacher):
         predicted_reward = np.sum(predicted_policy * self.env.R)
         return predicted_reward
     
-    def demonstrate(self, method='MAP', alpha=0):
+    def demonstrate(self, method: str='MAP', alpha: float=0) -> tuple:
         # Predict learner type
         predicted_type = self.predict_learner_type()
 
