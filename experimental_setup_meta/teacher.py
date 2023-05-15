@@ -74,9 +74,10 @@ class NaiveTeacher(Teacher):
 # Bayesian model of the learner
 class BaysesianTeacher(Teacher):
 
-    def __init__(self, env, num_types):
+    def __init__(self, env, num_types, eps=1e-5):
         super().__init__(env, num_types)
         self.beliefs = np.ones(self.num_types) / self.num_types
+        self.eps = eps
         self.init_env(env)
     
     def init_env(self, env):
@@ -90,7 +91,10 @@ class BaysesianTeacher(Teacher):
                 policy_type = compute_policy(projection(self.learner_beliefs.copy(), type), self.env)
                 # Update belief on the type of learner
                 self.beliefs[type] *= policy_type[u]
-                self.beliefs /= self.beliefs.sum()
+            self.beliefs /= self.beliefs.sum()
+            # Add noise
+            self.beliefs += self.eps
+            self.beliefs /= self.beliefs.sum()
             # Update estimate of the learner beliefs
             self.learner_beliefs = bayesian_update(self.learner_beliefs, u, r)
     
