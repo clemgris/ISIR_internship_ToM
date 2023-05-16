@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 from math import log
 from typing import *
 
+import os
+import json
+
+
 def draw(proba_dist: np.array) -> int:
     assert(np.isclose(proba_dist.sum(), 1.))
     rand_num = np.random.uniform(0, 1)
@@ -33,3 +37,33 @@ def Shannon_entropy(proba_dist: np.array, axis: int=None) -> Union[float, np.arr
     tab = proba_dist * np.log2(proba_dist)
     tab[np.isnan(tab)] = 0
     return -np.sum(tab, axis=axis, where=(proba_dist.any() != 0))
+
+def make_dirs(path: str) -> None:
+    try:
+        os.makedirs(path)
+    except OSError:
+        if not os.path.isdir(path):
+            raise
+
+def save_data(dico: dict, path: str, filename: str) -> None:
+    data_dict = dico.copy()
+    make_dirs(path)
+    path = path + '/' + f'{filename}.json'
+
+    # Convert np.array into list
+    for key in data_dict.keys():
+        if isinstance(data_dict[key], np.ndarray):
+            data_dict[key] = data_dict[key].tolist()
+
+    with open(path, "w") as f:
+        json.dump(data_dict, f)
+
+def load_data(path: str) -> dict:
+    with open(path, "r") as f:
+        data_dict = json.load(f)
+    
+    # Convert list into np.array
+    for key in data_dict.keys():
+        if isinstance(data_dict[key], list):
+            data_dict[key] = np.array(data_dict[key])
+    return data_dict
