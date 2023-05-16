@@ -16,7 +16,7 @@ def projection(beliefs: np.array, learner_type: int) -> np.array:
     projected_beliefs = beliefs.copy()
     # Projection into the constrained space
     if learner_type > 0:
-        if np.count_nonzero(np.isclose(projected_beliefs[:, 1], 1.)) == learner_type:
+        if np.count_nonzero(np.isclose(projected_beliefs[:, 1], 1.)) >= learner_type:
             for ii in range(projected_beliefs.shape[0]):
                 if projected_beliefs[ii, 1] != 1:
                     projected_beliefs[ii, :] = [1, 0]
