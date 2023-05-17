@@ -8,7 +8,6 @@ from typing import *
 import os
 import json
 
-
 def draw(proba_dist: np.array) -> int:
     assert(np.isclose(proba_dist.sum(), 1.))
     rand_num = np.random.uniform(0, 1)
@@ -45,15 +44,33 @@ def make_dirs(path: str) -> None:
         if not os.path.isdir(path):
             raise
 
+def convert_to_list(dico: dict):
+    data_dico = dico.copy()
+    for key in dico.keys():
+        if isinstance(dico[key], np.ndarray):
+            data_dico[key] = dico[key].tolist()
+        elif isinstance(dico[key], list):
+            dico[key] = np.array(dico[key]).tolist()
+        elif isinstance(dico[key], dict):
+            data_dico[key] = convert_to_list(dico[key])
+    return data_dico
+
+def convert_to_array(dico: dict):
+    data_dico = dico.copy()
+    for key in dico.keys():
+        if isinstance(dico[key], list):
+            data_dico[key] = np.array(dico[key])
+        elif isinstance(dico[key], dict):
+            data_dico[key] = convert_to_array(dico[key])
+    return data_dico
+
 def save_data(dico: dict, path: str, filename: str) -> None:
     data_dict = dico.copy()
     make_dirs(path)
     path = path + '/' + f'{filename}.json'
 
     # Convert np.array into list
-    for key in data_dict.keys():
-        if isinstance(data_dict[key], np.ndarray):
-            data_dict[key] = data_dict[key].tolist()
+    data_dict = convert_to_list(data_dict)
 
     with open(path, "w") as f:
         json.dump(data_dict, f)
@@ -63,7 +80,6 @@ def load_data(path: str) -> dict:
         data_dict = json.load(f)
     
     # Convert list into np.array
-    for key in data_dict.keys():
-        if isinstance(data_dict[key], list):
-            data_dict[key] = np.array(data_dict[key])
+    data_dict = convert_to_array(data_dict)
+    
     return data_dict
