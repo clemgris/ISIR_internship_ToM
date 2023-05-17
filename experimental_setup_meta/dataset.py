@@ -6,7 +6,7 @@ from datetime import datetime
 
 class ToMNetDataset(Dataset):
 
-    def __init__(self, past_traj, current_traj, target_actions, demonstrations):
+    def __init__(self, past_traj, current_traj, target_actions, demonstrations) -> None:
         self.past_traj = past_traj
         self.current_traj = current_traj
         self.target_actions = target_actions
@@ -16,7 +16,7 @@ class ToMNetDataset(Dataset):
         return len(self.past_traj)
 
     def __getitem__(self, ind):
-            return self.past_traj[ind], self.current_traj[ind], self.demonstrations[ind], self.target_action[ind]
+            return self.past_traj[ind], self.current_traj[ind], self.demonstrations[ind], self.target_actions[ind]
 
 def save_data(dict, mode):
 
