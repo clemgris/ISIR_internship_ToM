@@ -166,8 +166,7 @@ class MentalNet(nn.Module):
         e_mental = e_mental.permute(0, 2, 1) # [batch, output, n_buttons]
 
         return e_mental
-
-## TO BE FINISHED 
+    
 class PredNet(nn.Module):
     def __init__(self, 
                  num_input: int,
