@@ -1,6 +1,9 @@
 import torch.nn as nn
-import torch as tr
+import torch as torch
 import torch.nn.functional as F
+
+from torch.utils.data import DataLoader
+from torch.optim.optimizer import Optimizer
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1) -> None:
@@ -46,42 +49,46 @@ class ResNetBlock(nn.Module):
         return x
 
 class CharNet(nn.Module):
-    def __init__(self, num_past, num_input, num_step, num_exp=1, device: str='cuda'):
+    def __init__(self, 
+                 num_input: int, 
+                 num_step: int,
+                 num_output: int,
+                 device: str='cuda'
+                 ) -> None:
+        
         super(CharNet, self).__init__()
-        self.num_exp = num_exp
+
         self.conv1 = ResNetBlock(num_input, 4, 1).double()
         self.conv2 = ResNetBlock(4, 8, 1).double()
         self.conv3 = ResNetBlock(8, 16, 1).double()
         self.conv4 = ResNetBlock(16, 32, 1).double()
         self.conv5 = ResNetBlock(32, 32, 1).double()
         self.bn = nn.BatchNorm1d(32).double()
-        self.relu = nn.ReLU(inplace=True).double()
+        self.relu = nn.ReLU().double()
         self.lstm = nn.LSTM(32, 64).double()
         self.avgpool = nn.AvgPool1d(20).double()
-        self.fc64_2 = nn.Linear(num_step * 64, 2).double()
-        self.fc64_8 = nn.Linear(num_step * 64, 8).double()
-        self.fc32_2 = nn.Linear(32, 2).double()
-        self.fc32_8 = nn.Linear(32, 8).double()
+        self.fc_final = nn.Linear(num_step * 64, num_output).double()
         self.hidden_size = 64
 
         self.device = device
 
-    def init_hidden(self, batch_size):
-        return (tr.zeros(1, batch_size, 64, device=self.device, dtype=tr.float64),
-                tr.zeros(1, batch_size, 64, device=self.device, dtype=tr.float64))
+    def init_hidden(self, input_dim: int) -> tuple:
+        return (torch.zeros(1, input_dim, 64, device=self.device, dtype=torch.float64),
+                torch.zeros(1, input_dim, 64, device=self.device, dtype=torch.float64))
 
-    def forward(self, obs):
-        ('full obs', obs.shape)
-        # batch, num_past, num_step, n_buttons, channel
-        obs = obs.permute(0, 1, 2, 4, 3)
-        b, num_past, num_step, c, n_buttons = obs.shape
+    def forward(self, obs: torch.tensor) -> torch.tensor:
+        # obs: [batch, num_past, num_step, n_buttons, channel]
+
+        obs = obs.permute(0, 1, 2, 4, 3) # [batch, num_past, num_step, channel, n_buttons]
+        batch_size, num_past, num_step, num_channel, n_buttons = obs.shape
+        
         past_e_char = []
         for p in range(num_past):
-            prev_h = self.init_hidden(b)
+            prev_h = self.init_hidden(batch_size)
 
-            obs_past = obs[:, p] #batch(0), num_step(1), channel(2), height(3), width(4)
-            obs_past = obs_past.permute(1, 0, 2, 3)
-            obs_past = obs_past.reshape(-1, c, n_buttons)
+            obs_past = obs[:, p] # [batch, num_step, channel, n_buttons]
+            obs_past = obs_past.permute(1, 0, 2, 3) # [num_step, batch, channel, n_buttons]
+            obs_past = obs_past.reshape(-1, num_channel, n_buttons) # [batch * num_step, channel, n_buttons]
             
             x = self.conv1(obs_past)
             x = self.conv2(x)
@@ -89,24 +96,231 @@ class CharNet(nn.Module):
             x = self.conv4(x)
             x = self.conv5(x)
             x = self.relu(x)
-            x = self.bn(x)
-            x = self.avgpool(x)
+            x = self.bn(x) # [batch * num_step, output, n_buttons]
+            x = self.avgpool(x) # [batch * num_step, output, 1]
 
-            if self.num_exp == 2:
-                x = x.view(num_step, b, -1)
-                x = x.transpose(1, 0)
-                x = self.fc32_8(x)  ## batch, output
-                final_e_char = x
-            else:
-                outs, _ = self.lstm(x.view(num_step, b, -1), prev_h)
-                outs = outs.transpose(0, 1).reshape(b, -1) ## batch, step * output
-                e_char_sum = self.fc64_8(outs) ## batch, output
-                past_e_char.append(e_char_sum)
+            x = x.view(num_step, batch_size, -1) # [num_step, batch, output]
+            outs, _ = self.lstm(x, prev_h)
+            outs = outs.permute(1, 0, 2) # [batch, num_step, output]
+            outs = outs.reshape(batch_size, -1) # [batch, num_step * output]
+            e_char_sum = self.fc_final(outs) # [batch, output]
+            past_e_char.append(e_char_sum)
 
-        if self.num_exp == 1 or self.num_exp == 3:
-            ## sum_num_past
-            past_e_char = tr.stack(past_e_char, dim=0)
-            past_e_char_sum = sum(past_e_char)
-            final_e_char = past_e_char_sum
+        # Sum e_char past traj
+        past_e_char = torch.stack(past_e_char, dim=0)
+        past_e_char_sum = sum(past_e_char)
+        final_e_char = past_e_char_sum
 
         return final_e_char
+
+class MentalNet(nn.Module):
+    def __init__(self, num_input: int, 
+                 num_step: int, 
+                 num_output: int,
+                 device: str='cuda'
+                 ) -> None:
+        
+        super(MentalNet, self).__init__()
+
+        self.conv1 = ResNetBlock(num_input, 4, 1).double()
+        self.conv2 = ResNetBlock(4, 8, 1).double()
+        self.conv3 = ResNetBlock(8, 16, 1).double()
+        self.conv4 = ResNetBlock(16, 32, 1).double()
+        self.conv5 = ResNetBlock(32, 32, 1).double()
+        self.bn = nn.BatchNorm1d(32).double()
+        self.relu = nn.ReLU().double()
+        self.lstm = nn.LSTM(32, 32).double()
+        self.conv_out = ResNetBlock(num_step * 32, num_output, 1).double()
+
+        self.device = device
+
+    def init_hidden(self, input_dim: int) -> tuple:
+            return (torch.zeros(1, input_dim, 32, device=self.device, dtype=torch.float64),
+                    torch.zeros(1, input_dim, 32, device=self.device, dtype=torch.float64))
+
+    def forward(self, obs: torch.tensor) -> torch.tensor:
+        # obs: [batch, num_step, n_buttons, channel]
+
+        obs = obs.permute(0, 1, 3, 2) # [batch, num_step, channel, n_buttons]
+        batch_size, num_step, num_channel, n_buttons = obs.shape
+
+        obs = obs.permute(1, 0, 2, 3) # [num_step, batch, channel, n_buttons]
+        obs = obs.reshape(-1, num_channel, n_buttons) # [num_step * batch, channel, n_buttons]
+        
+        x = self.conv1(obs)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.conv4(x)
+        x = self.conv5(x)
+        x = self.relu(x)
+        x = self.bn(x) # [num_step * batch, output, n_buttons]
+
+        x = x.permute(0, 2, 1) # [num_step * batch, n_buttons, output]
+        x = x.reshape(num_step, batch_size * n_buttons, -1) # [num_step, batch * n_buttons, output]
+        prev_h = self.init_hidden(batch_size * n_buttons)
+        outs, _ = self.lstm(x, prev_h)
+
+        outs = outs.permute(1, 2, 0) # [batch * n_buttons, num_step, output]
+        outs = outs.reshape(batch_size, -1, n_buttons) # [batch, n_buttons, num_step * output]
+        e_mental = self.conv_out(outs) # [batch, n_buttons, output]
+        e_mental = e_mental.permute(0, 2, 1) # [batch, output, n_buttons]
+
+        return e_mental
+
+## TO BE FINISHED 
+class PredNet(nn.Module):
+    def __init__(self, 
+                 num_input: int,
+                  num_agent: int, 
+                  num_step: int,
+                  n_buttons: int,
+                  num_output_char: int=8,
+                  num_output_mental: int=32,
+                  device: str='cuda'
+                  ) -> None:
+        
+        super(PredNet, self).__init__()
+
+        self.charnet = CharNet(num_input, num_step=num_step, num_output=num_output_char, device=device)
+        self.mentalnet_traj = MentalNet(num_input, num_step, num_output=num_output_mental, device=device)
+        self.mentalnet_demo = MentalNet(num_input, n_buttons, num_output=num_output_mental, device=device)
+
+        self.conv1 = ResNetBlock(2 * num_output_mental + num_output_char, 8, 1).double()
+        self.conv2 = ResNetBlock(8, 16, 1).double()
+        self.conv3 = ResNetBlock(16, 16, 1).double()
+        self.conv4 = ResNetBlock(16, 32, 1).double()
+        self.conv5 = ResNetBlock(32, 32, 1).double()
+
+        self.normal_conv1 = ConvBlock(14, 8, 1).double()
+        self.normal_conv2 = ConvBlock(8, 16, 1).double()
+        self.normal_conv3 = ConvBlock(16, 16, 1).double()
+        self.normal_conv4 = ConvBlock(16, 32, 1).double()
+        self.normal_conv5 = ConvBlock(32, 32, 1).double()
+        
+        self.avgpool = nn.AvgPool1d(20).double()
+        self.bn = nn.BatchNorm1d(32).double()
+
+        self.relu = nn.ReLU().double()
+        self.action_fc = nn.Linear(32, 5).double()
+
+        self.device = device
+        
+        self.softmax = nn.Softmax().double()
+        self.num_agent = num_agent
+
+        self.action_head = nn.Sequential(
+            nn.Conv1d(32, 32, 1, 1).double(),
+            nn.ReLU().double(),
+            nn.AvgPool1d(20).double(),
+            nn.Flatten().double(),
+            nn.Linear(32,20).double(),
+            nn.LogSoftmax(dim=1).double()
+        )
+
+    def forward(self, past_traj: torch.tensor, current_traj: torch.tensor, demo: torch.tensor) -> tuple:
+    
+        # Past traj
+        batch_size, num_past, num_step, n_buttons, _ = past_traj.shape
+        if num_past == 0:
+            e_char = torch.zeros((batch_size, 8, n_buttons), device=self.device)
+        else:
+            e_char = self.charnet(past_traj)
+            e_char = e_char[..., None]
+            e_char = e_char.repeat(1, 1, n_buttons) # [batch, num_output_char, n_buttons]
+
+        # Current traj
+        _, num_step, _, _ = current_traj.shape
+        if num_step == 0:
+            e_mental = torch.zeros((batch_size, 2, n_buttons))
+        else:
+            e_mental = self.mentalnet_traj(current_traj)
+            e_mental = e_mental.permute(0, 2, 1) # [batch, num_output_mental, n_buttons]
+
+        # Demonstration
+        _, num_step, _, _ = current_traj.shape
+        if num_step == 0:
+            e_demo = torch.zeros((batch_size, 8, n_buttons))
+        else:
+            e_demo = self.mentalnet_demo(demo)
+            e_demo = e_demo.permute(0, 2, 1) # [batch, num_output_mental, n_buttons]
+
+        x_concat = torch.cat([e_char, e_mental, e_demo], axis=1) # [batch, num_output_char + num_output_mental * 2, n_buttons]
+
+        x = self.conv1(x_concat)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.conv4(x)
+        x = self.conv5(x)
+        x = self.relu(x)
+        x = self.bn(x)
+
+        action = self.action_head(x)
+
+        return action, e_char, e_mental, e_demo
+
+    def train(self, data_loader: DataLoader, optim: Optimizer) -> dict:
+        tot_loss = 0
+        a_loss = 0
+        action_acc = 0
+
+        criterion_nll = nn.NLLLoss()
+
+        # for batch in tqdm(data_loader, leave=False, total=len(data_loader)):
+        for i, batch in enumerate(data_loader):
+
+            past_traj, curr_state, demo, target_action = batch
+            
+            past_traj = past_traj.float().to(self.device)
+            curr_state = curr_state.float().to(self.device)
+            demo = demo.float().to(self.device)
+            target_action = target_action.long().to(self.device)
+
+            pred_action, e_char, e_mental, e_demo = self.forward(past_traj, curr_state, demo)
+
+            loss = criterion_nll(pred_action, target_action)
+            
+            # Backpropagation
+            optim.zero_grad()
+
+            loss.mean().backward()
+            optim.step()
+
+            pred_action_ind = torch.argmax(pred_action, dim=-1)
+            tot_loss += loss.item()
+
+            action_acc += torch.sum(pred_action_ind == target_action).item()
+
+        dicts = dict(accuracy=action_acc / len(data_loader),
+                     loss=tot_loss / len(data_loader))
+        return dicts
+
+    def evaluate(self, data_loader: DataLoader) -> dict:
+        tot_loss = 0
+        action_acc = 0
+
+        criterion_nll = nn.NLLLoss()
+
+        for i, batch in enumerate(data_loader):
+            with torch.no_grad():
+                past_traj, curr_state, demo, target_action = batch
+                
+                past_traj = past_traj.float().to(self.device)
+                curr_state = curr_state.float().to(self.device)
+                demo = demo.float().to(self.device)
+                target_action = target_action.long().to(self.device)
+
+                pred_action, e_char, e_mental, e_demo = self.forward(past_traj, curr_state, demo)
+                action_loss = criterion_nll(pred_action, target_action)
+
+            tot_loss += action_loss.item()
+
+            pred_action_ind = torch.argmax(pred_action, dim=-1)
+            # print('pred_action_ind', pred_action_ind, 'target_action', target_action)
+
+            action_acc += torch.sum(pred_action_ind == target_action).item()
+            
+        dicts = dict()
+        dicts['loss'] = tot_loss / len(data_loader)
+        dicts['accuracy'] = action_acc / len(data_loader)
+
+        return dicts
