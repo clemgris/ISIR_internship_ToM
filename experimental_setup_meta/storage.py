@@ -21,9 +21,9 @@ class Storage:
         # Current trajectories
         self.current_traj = np.zeros([self.length, self.max_steps, self.n_buttons, 2])
         # Demonstrations
-        self.demonstrations = np.zeros([self.length, self.max_steps, self.n_buttons, 2])
+        self.demonstrations = np.zeros([self.length, self.n_buttons, self.n_buttons, 2])
         # Target actions (of the learner after seen the demo)
-        self.target_actions = np.zeros([self.length, self.n_buttons])
+        self.target_actions = np.zeros([self.length])
     
     def extract(self):
         for type in range(self.num_types):
@@ -67,7 +67,7 @@ class Storage:
                     # Target action
                     agent.observe((actions, rewards))
                     action, _ = agent.act(size=1)
-                    self.target_actions[idx + demo_type, action[0]] = 1
+                    self.target_actions[idx + demo_type] = action[0]
         
         return dict(
             past_traj = self.past_traj,
