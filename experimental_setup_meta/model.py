@@ -286,7 +286,7 @@ class PredNet(nn.Module):
             pred_action_ind = torch.argmax(pred_action, dim=-1)
             tot_loss += loss.item()
 
-            action_acc += torch.sum(pred_action_ind == target_action).item()
+            action_acc += (torch.sum(pred_action_ind == target_action).item() / len(target_action))
 
         dicts = dict(accuracy=action_acc / len(data_loader),
                      loss=tot_loss / len(data_loader))
@@ -317,8 +317,7 @@ class PredNet(nn.Module):
 
             action_acc += torch.sum(pred_action_ind == target_action).item()
             
-        dicts = dict()
-        dicts['loss'] = tot_loss / len(data_loader)
-        dicts['accuracy'] = action_acc / len(data_loader)
+        dicts = dict(accuracy=action_acc / len(data_loader),
+                     loss=tot_loss / len(data_loader))
 
         return dicts
