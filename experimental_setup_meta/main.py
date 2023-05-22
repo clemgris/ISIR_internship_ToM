@@ -14,7 +14,7 @@ def parse_args():
     parser = argparse.ArgumentParser('Saving data')
     parser.add_argument('--n_epochs', '-e', type=int, default=10)
     parser.add_argument('--batch_size', '-b', type=int, default=3)
-    parser.add_argument('--learning_rate', '-lr', type=int, default=0.001)
+    parser.add_argument('--learning_rate', '-lr', type=float, default=0.001)
     args = parser.parse_args()
     return args
 
