@@ -26,6 +26,7 @@ if __name__ == '__main__':
     config = load_data(os.path.join(loading_path,'config_dataset.json'))
 
     device = 'cpu' if torch.cuda.is_available() else 'cuda'
+    print(f'Working on device {device}')
 
     # Dataset parameters
     n_buttons, n_music = config['n_buttons'], config['n_music']
