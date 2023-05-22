@@ -59,16 +59,16 @@ class CharNet(nn.Module):
         
         super(CharNet, self).__init__()
 
-        self.conv1 = ResNetBlock(num_input, 4, 1).double()
-        self.conv2 = ResNetBlock(4, 8, 1).double()
-        self.conv3 = ResNetBlock(8, 16, 1).double()
-        self.conv4 = ResNetBlock(16, 32, 1).double()
-        self.conv5 = ResNetBlock(32, 32, 1).double()
-        self.bn = nn.BatchNorm1d(32).double()
-        self.relu = nn.ReLU().double()
-        self.lstm = nn.LSTM(32, 64).double()
-        self.avgpool = nn.AvgPool1d(20).double()
-        self.fc_final = nn.Linear(num_step * 64, num_output).double()
+        self.conv1 = ResNetBlock(num_input, 4, 1).double().to(device)
+        self.conv2 = ResNetBlock(4, 8, 1).double().to(device)
+        self.conv3 = ResNetBlock(8, 16, 1).double().to(device)
+        self.conv4 = ResNetBlock(16, 32, 1).double().to(device)
+        self.conv5 = ResNetBlock(32, 32, 1).double().to(device)
+        self.bn = nn.BatchNorm1d(32).double().to(device)
+        self.relu = nn.ReLU().double().to(device)
+        self.lstm = nn.LSTM(32, 64).double().to(device)
+        self.avgpool = nn.AvgPool1d(20).double().to(device)
+        self.fc_final = nn.Linear(num_step * 64, num_output).double().to(device)
         self.hidden_size = 64
 
         self.device = device
@@ -123,15 +123,15 @@ class MentalNet(nn.Module):
         
         super(MentalNet, self).__init__()
 
-        self.conv1 = ResNetBlock(num_input, 4, 1).double()
-        self.conv2 = ResNetBlock(4, 8, 1).double()
-        self.conv3 = ResNetBlock(8, 16, 1).double()
-        self.conv4 = ResNetBlock(16, 32, 1).double()
-        self.conv5 = ResNetBlock(32, 32, 1).double()
-        self.bn = nn.BatchNorm1d(32).double()
-        self.relu = nn.ReLU().double()
-        self.lstm = nn.LSTM(32, 32).double()
-        self.conv_out = ResNetBlock(num_step * 32, num_output, 1).double()
+        self.conv1 = ResNetBlock(num_input, 4, 1).double().to(device)
+        self.conv2 = ResNetBlock(4, 8, 1).double().to(device)
+        self.conv3 = ResNetBlock(8, 16, 1).double().to(device)
+        self.conv4 = ResNetBlock(16, 32, 1).double().to(device)
+        self.conv5 = ResNetBlock(32, 32, 1).double().to(device)
+        self.bn = nn.BatchNorm1d(32).double().to(device)
+        self.relu = nn.ReLU().double().to(device)
+        self.lstm = nn.LSTM(32, 32).double().to(device)
+        self.conv_out = ResNetBlock(num_step * 32, num_output, 1).double().to(device)
 
         self.device = device
 
@@ -185,27 +185,27 @@ class PredNet(nn.Module):
         self.mentalnet_traj = MentalNet(num_input, num_step, num_output=num_output_mental, device=device)
         self.mentalnet_demo = MentalNet(num_input, n_buttons, num_output=num_output_mental, device=device)
 
-        self.conv1 = ResNetBlock(2 * num_output_mental + num_output_char, 8, 1).double()
-        self.conv2 = ResNetBlock(8, 16, 1).double()
-        self.conv3 = ResNetBlock(16, 16, 1).double()
-        self.conv4 = ResNetBlock(16, 32, 1).double()
-        self.conv5 = ResNetBlock(32, 32, 1).double()
+        self.conv1 = ResNetBlock(2 * num_output_mental + num_output_char, 8, 1).double().to(device)
+        self.conv2 = ResNetBlock(8, 16, 1).double().to(device)
+        self.conv3 = ResNetBlock(16, 16, 1).double().to(device)
+        self.conv4 = ResNetBlock(16, 32, 1).double().to(device)
+        self.conv5 = ResNetBlock(32, 32, 1).double().to(device)
 
-        self.normal_conv1 = ConvBlock(14, 8, 1).double()
-        self.normal_conv2 = ConvBlock(8, 16, 1).double()
-        self.normal_conv3 = ConvBlock(16, 16, 1).double()
-        self.normal_conv4 = ConvBlock(16, 32, 1).double()
-        self.normal_conv5 = ConvBlock(32, 32, 1).double()
+        self.normal_conv1 = ConvBlock(14, 8, 1).double().to(device)
+        self.normal_conv2 = ConvBlock(8, 16, 1).double().to(device)
+        self.normal_conv3 = ConvBlock(16, 16, 1).double().to(device)
+        self.normal_conv4 = ConvBlock(16, 32, 1).double().to(device)
+        self.normal_conv5 = ConvBlock(32, 32, 1).double().to(device)
         
-        self.avgpool = nn.AvgPool1d(20).double()
-        self.bn = nn.BatchNorm1d(32).double()
+        self.avgpool = nn.AvgPool1d(20).double().to(device)
+        self.bn = nn.BatchNorm1d(32).double().to(device)
 
-        self.relu = nn.ReLU().double()
-        self.action_fc = nn.Linear(32, 5).double()
+        self.relu = nn.ReLU().double().to(device)
+        self.action_fc = nn.Linear(32, 5).double().to(device)
 
         self.device = device
         
-        self.softmax = nn.Softmax().double()
+        self.softmax = nn.Softmax().double().to(device)
         self.num_agent = num_agent
 
         self.action_head = nn.Sequential(
@@ -215,7 +215,7 @@ class PredNet(nn.Module):
             nn.Flatten().double(),
             nn.Linear(32,20).double(),
             nn.LogSoftmax(dim=1).double()
-        )
+        ).to(device)
 
     def forward(self, past_traj: torch.tensor, current_traj: torch.tensor, demo: torch.tensor) -> tuple:
     

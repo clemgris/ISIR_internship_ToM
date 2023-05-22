@@ -15,6 +15,7 @@ def parse_args():
     parser.add_argument('--n_epochs', '-e', type=int, default=10)
     parser.add_argument('--batch_size', '-b', type=int, default=3)
     parser.add_argument('--learning_rate', '-lr', type=float, default=0.001)
+    parser.add_argument('--device', type=str, default=None)
     args = parser.parse_args()
     return args
 
@@ -25,7 +26,13 @@ if __name__ == '__main__':
     loading_path = './data/22-05-2023'
     config = load_data(os.path.join(loading_path,'config_dataset.json'))
 
-    device = 'cpu' if torch.cuda.is_available() else 'cuda'
+    if args.device is None:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    elif args.device == 'cpu' or args.device == 'cuda':
+        device = args.device
+    else:
+        raise ValueError('Unknown device type')
+    
     print(f'Working on device {device}')
 
     # Dataset parameters
@@ -38,10 +45,10 @@ if __name__ == '__main__':
     test_data = load_data(os.path.join(loading_path, 'test_dataset.json'))
 
     train_dataset = ToMNetDataset(**train_data)
-    print('{} training data'.format(len(train_data['target_actions'])))
+    print('Training data {}'.format(len(train_data['target_actions'])))
 
     test_dataset = ToMNetDataset(**test_data)
-    print('{} test data'.format(len(test_data['target_actions'])))
+    print('Test data {}'.format(len(test_data['target_actions'])))
 
     # Training parameters
     batch_size = args.batch_size
