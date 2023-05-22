@@ -9,7 +9,7 @@ class ToMNetDataset(Dataset):
         self.demonstrations = demonstrations
     
     def __len__(self):
-        return len(self.past_traj)
+        return len(self.target_actions)
 
     def __getitem__(self, ind):
             return self.past_traj[ind], self.current_traj[ind], self.demonstrations[ind], self.target_actions[ind]
