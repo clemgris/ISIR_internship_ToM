@@ -1,46 +1,52 @@
 import numpy as np
+import os
+import torch.optim as optim
+import torch
 
-from storage import Storage
-from dataset import ToMNetDataset, save_data
+from storage import Storage, load_data
+from dataset import ToMNetDataset
 from torch.utils.data import DataLoader
+from model import CharNet, MentalNet, PredNet
 
-n_buttons = 20
-n_music = 3
+loading_path = './data/22-05-2023'
+config = load_data(os.path.join(loading_path,'config_dataset.json'))
 
-num_past = 10
-max_steps = 30
-min_steps = 0
+device = 'cpu' if torch.cuda.is_available() else 'cuda'
 
-n_agent_train = 10
-n_agent_test = 10
+# Dataset parameters
+n_buttons, n_music = config['n_buttons'], config['n_music']
+num_past, max_steps, min_steps = config['num_past'], config['max_steps'], config['min_steps']
+n_agent_train, n_agent_test = config['n_agent_train'], config['n_agent_test']
 
-batch_size = 10
-
-train_store = Storage(n_buttons=n_buttons,
-        n_music=n_music,
-        max_steps=max_steps,
-        num_past=num_past,
-        num_types=4,
-        num_agents=n_agent_train,
-        num_demo_types=4,
-        min_steps=min_steps
-        )
-
-eval_store = Storage(n_buttons=n_buttons,
-        n_music=n_music,
-        max_steps=max_steps,
-        num_past=num_past,
-        num_types=4,
-        num_agents=n_agent_test,
-        num_demo_types=4,
-        min_steps=min_steps
-        )
-
-train_data = train_store.extract()
-eval_data = eval_store.extract()
+# Load data
+train_data =load_data(os.path.join(loading_path, 'train_dataset.json')) 
+test_data = load_data(os.path.join(loading_path, 'test_dataset.json'))
 
 train_dataset = ToMNetDataset(**train_data)
-eval_dataset = ToMNetDataset(**eval_data)
+print('{} training data'.format(len(train_data['target_actions'])))
 
+test_dataset = ToMNetDataset(**test_data)
+print('{} test data'.format(len(test_data['target_actions'])))
+
+# Training parameters
+batch_size = 3
+learning_rate = 0.001
+n_epochs = 50
+
+# Load data and model 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-eval_loader = DataLoader(eval_dataset, batch_size=batch_size, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+prednet = PredNet(num_input=2, num_agent=n_agent_train, num_step=max_steps, n_buttons=n_buttons, device=device)
+optimizer = optim.Adam(prednet.parameters(), lr=learning_rate)
+
+# Training loop
+for epoch in range(n_epochs):
+    train_dict = prednet.train(train_loader, optimizer)
+    train_msg ='Train| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, train_dict['loss'], train_dict['accuracy'])
+    print(train_msg)
+
+test_dict = prednet.evaluate(test_loader)
+
+test_msg ='Test| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, test_dict['loss'], test_dict['accuracy'])
+print(test_msg)
