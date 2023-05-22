@@ -259,7 +259,6 @@ class PredNet(nn.Module):
 
     def train(self, data_loader: DataLoader, optim: Optimizer) -> dict:
         tot_loss = 0
-        a_loss = 0
         action_acc = 0
 
         criterion_nll = nn.NLLLoss()
