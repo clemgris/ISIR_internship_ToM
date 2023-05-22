@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch as torch
 import torch.nn.functional as F
+from tqdm import tqdm
 
 from torch.utils.data import DataLoader
 from torch.optim.optimizer import Optimizer
@@ -264,7 +265,7 @@ class PredNet(nn.Module):
         criterion_nll = nn.NLLLoss()
 
         # for batch in tqdm(data_loader, leave=False, total=len(data_loader)):
-        for i, batch in enumerate(data_loader):
+        for i, batch in enumerate(tqdm(data_loader)):
 
             past_traj, curr_state, demo, target_action = batch
             
@@ -298,7 +299,7 @@ class PredNet(nn.Module):
 
         criterion_nll = nn.NLLLoss()
 
-        for i, batch in enumerate(data_loader):
+        for i, batch in enumerate(tqdm(data_loader)):
             with torch.no_grad():
                 past_traj, curr_state, demo, target_action = batch
                 
