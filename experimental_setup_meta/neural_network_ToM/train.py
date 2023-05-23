@@ -3,12 +3,13 @@ import os
 import torch
 import argparse
 
+from datetime import datetime
 import torch.optim as optim
 
-from storage import Storage, load_data
+from utils import load_data
 from dataset import ToMNetDataset
 from torch.utils.data import DataLoader
-from ISIR_internship_ToM.experimental_setup_meta.neural_network_ToM.model import CharNet, MentalNet, PredNet
+from model import PredNet
 
 def parse_args():
     parser = argparse.ArgumentParser('Saving data')
@@ -24,7 +25,7 @@ if __name__ == '__main__':
     args = parse_args()
         
     loading_path = './data/22-05-2023'
-    config = load_data(os.path.join(loading_path,'config_dataset.json'))
+    config = load_data(os.path.join(loading_path, 'config_dataset.json'))
 
     if args.device is None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -41,7 +42,7 @@ if __name__ == '__main__':
     n_agent_train, n_agent_test = config['n_agent_train'], config['n_agent_test']
 
     # Load data
-    train_data =load_data(os.path.join(loading_path, 'train_dataset.json')) 
+    train_data = load_data(os.path.join(loading_path, 'train_dataset.json')) 
     test_data = load_data(os.path.join(loading_path, 'test_dataset.json'))
 
     train_dataset = ToMNetDataset(**train_data)
@@ -68,7 +69,11 @@ if __name__ == '__main__':
         train_msg ='Train| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, train_dict['loss'], train_dict['accuracy'])
         print(train_msg)
 
+    # Evaluation
     test_dict = prednet.evaluate(test_loader)
-
     test_msg ='Test| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, test_dict['loss'], test_dict['accuracy'])
     print(test_msg)
+
+    # Save weights
+    date = date = datetime.now().strftime('%d-%m-%Y')
+    torch.save(prednet.state_dict(), f'./model_weights/prednet_model_{date}.pt')
