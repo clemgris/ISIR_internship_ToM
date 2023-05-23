@@ -1,6 +1,6 @@
 import argparse
 from storage import Storage
-from utils import save_data
+from nn_utils import save_data
 
 def parse_args():
     parser = argparse.ArgumentParser('Saving data')
@@ -52,12 +52,12 @@ if __name__ == '__main__':
         save_data(config, 'config')
         print('Done')
 
-        print('Generating and saving training data ...')
+        print(f'Generating and saving {train_store.length} training data ...')
         train_data = train_store.extract()
         save_data(train_data, 'train')
         print('Done')
 
-        print('Generating and saving test data ...')
+        print(f'Generating and saving {test_store.length} test data ...')
         test_data = test_store.extract()
         save_data(test_data, 'test')
         print('Done')
