@@ -1,5 +1,6 @@
 import argparse
-from storage import Storage, save_data
+from storage import Storage
+from utils import save_data
 
 def parse_args():
     parser = argparse.ArgumentParser('Saving data')
