@@ -191,11 +191,11 @@ class PredNet(nn.Module):
         self.conv4 = ResNetBlock(16, 32, 1).double().to(device)
         self.conv5 = ResNetBlock(32, 32, 1).double().to(device)
 
-        self.normal_conv1 = ConvBlock(14, 8, 1).double().to(device)
-        self.normal_conv2 = ConvBlock(8, 16, 1).double().to(device)
-        self.normal_conv3 = ConvBlock(16, 16, 1).double().to(device)
-        self.normal_conv4 = ConvBlock(16, 32, 1).double().to(device)
-        self.normal_conv5 = ConvBlock(32, 32, 1).double().to(device)
+        # self.normal_conv1 = ConvBlock(14, 8, 1).double().to(device)
+        # self.normal_conv2 = ConvBlock(8, 16, 1).double().to(device)
+        # self.normal_conv3 = ConvBlock(16, 16, 1).double().to(device)
+        # self.normal_conv4 = ConvBlock(16, 32, 1).double().to(device)
+        # self.normal_conv5 = ConvBlock(32, 32, 1).double().to(device)
         
         self.avgpool = nn.AvgPool1d(20).double().to(device)
         self.bn = nn.BatchNorm1d(32).double().to(device)
@@ -213,7 +213,7 @@ class PredNet(nn.Module):
             nn.ReLU().double(),
             nn.AvgPool1d(20).double(),
             nn.Flatten().double(),
-            nn.Linear(32,20).double(),
+            nn.Linear(32, 20).double(),
             nn.LogSoftmax(dim=1).double()
         ).to(device)
 
@@ -267,14 +267,14 @@ class PredNet(nn.Module):
         # for batch in tqdm(data_loader, leave=False, total=len(data_loader)):
         for i, batch in enumerate(tqdm(data_loader)):
 
-            past_traj, curr_state, demo, target_action = batch
+            past_traj, curr_traj, demo, target_action = batch
             
             past_traj = past_traj.float().to(self.device)
-            curr_state = curr_state.float().to(self.device)
+            curr_traj = curr_traj.float().to(self.device)
             demo = demo.float().to(self.device)
             target_action = target_action.long().to(self.device)
 
-            pred_action, e_char, e_mental, e_demo = self.forward(past_traj, curr_state, demo)
+            pred_action, e_char, e_mental, e_demo = self.forward(past_traj, curr_traj, demo)
 
             loss = criterion_nll(pred_action, target_action)
             
