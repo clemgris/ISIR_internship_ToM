@@ -6,7 +6,7 @@ import argparse
 from datetime import datetime
 import torch.optim as optim
 
-from utils import load_data
+from nn_utils import load_data
 from dataset import ToMNetDataset
 from torch.utils.data import DataLoader
 from model import PredNet
@@ -17,6 +17,8 @@ def parse_args():
     parser.add_argument('--batch_size', '-b', type=int, default=3)
     parser.add_argument('--learning_rate', '-lr', type=float, default=0.001)
     parser.add_argument('--device', type=str, default=None)
+    parser.add_argument('--data_path', type=str, default='./data/22-05-2023')
+    parser.add_argument('--saving_name', type=str, default=None)
     args = parser.parse_args()
     return args
 
@@ -24,7 +26,7 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
         
-    loading_path = './data/22-05-2023'
+    loading_path = args.data_path
     config = load_data(os.path.join(loading_path, 'config_dataset.json'))
 
     if args.device is None:
@@ -75,5 +77,10 @@ if __name__ == '__main__':
     print(test_msg)
 
     # Save weights
-    date = date = datetime.now().strftime('%d-%m-%Y')
-    torch.save(prednet.state_dict(), f'./model_weights/prednet_model_{date}.pt')
+    if args.saving_name is None:
+        date = date = datetime.now().strftime('%d-%m-%Y')
+        saving_path = f'./model_weights/prednet_model_{date}.pt'
+    else:
+        saving_name = args.saving_name
+        saving_path = f'./model_weights/prednet_model_{saving_name}.pt'
+    torch.save(prednet.state_dict(), saving_path)
