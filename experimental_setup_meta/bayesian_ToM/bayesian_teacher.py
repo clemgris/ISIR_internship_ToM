@@ -49,9 +49,9 @@ class BaysesianTeacher(Teacher):
     def demonstrate(self, method: str='MAP', alpha: float=0) -> tuple:
         # Compute utilities of each demonstration
         utilities = np.zeros(self.num_demo_type)
+        predicted_type = self.predict_learner_type()
         for ii,demo in enumerate(self.demonstrations):
             if method == 'MAP':
-                predicted_type = self.predict_learner_type()
                 utilities[ii] = self.predict_reward(demo, predicted_type) - cost(demo, alpha=alpha)
             elif method == 'Bayesian':
                 utilities[ii] = np.sum([self.predict_reward(demo, type) * self.beliefs[type] for type in range(self.num_types)]) - cost(demo, alpha=alpha)
