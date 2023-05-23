@@ -26,7 +26,7 @@ def bayesian_update(beliefs: np.array, a: int, r: int) -> np.array:
     updated_beliefs = beliefs.copy()
     # Update uncertain beliefs
     for rr in range(updated_beliefs.shape[1]):
-        updated_beliefs[a, rr] *= rr == r
+        updated_beliefs[a, rr] *= (rr == r)
     # Normalize
     updated_beliefs[a, :] /= updated_beliefs[a, :].sum()
     return updated_beliefs

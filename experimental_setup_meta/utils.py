@@ -2,7 +2,6 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from math import log
 from typing import *
 
 import os
@@ -35,7 +34,9 @@ def Shannon_entropy(proba_dist: np.array, axis: int=None) -> Union[float, np.arr
     # Compute the Shannon Entropy 
     tab = proba_dist * np.log2(proba_dist)
     tab[np.isnan(tab)] = 0
-    return -np.sum(tab, axis=axis, where=(proba_dist.any() != 0))
+    return - np.sum(tab, axis=axis, where=(proba_dist.any() != 0))
+
+## Utils to save/load output (dict <--> json)
 
 def make_dirs(path: str) -> None:
     try:
@@ -64,7 +65,7 @@ def convert_to_array(dico: dict):
             data_dico[key] = convert_to_array(dico[key])
     return data_dico
 
-def save_data(dico: dict, path: str, filename: str) -> None:
+def save_output(dico: dict, path: str, filename: str) -> None:
     data_dict = dico.copy()
     make_dirs(path)
     path = path + '/' + f'{filename}.json'
@@ -75,7 +76,7 @@ def save_data(dico: dict, path: str, filename: str) -> None:
     with open(path, "w") as f:
         json.dump(data_dict, f)
 
-def load_data(path: str) -> dict:
+def load_output(path: str) -> dict:
     with open(path, "r") as f:
         data_dict = json.load(f)
     
