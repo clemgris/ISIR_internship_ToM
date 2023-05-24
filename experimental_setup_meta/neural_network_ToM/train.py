@@ -2,17 +2,18 @@ import numpy as np
 import os
 import torch
 import argparse
+import json
 
 from datetime import datetime
 import torch.optim as optim
 
-from nn_utils import load_data
+from nn_utils import load_data, load_config
 from dataset import ToMNetDataset
 from torch.utils.data import DataLoader
 from model import PredNet
 
 def parse_args():
-    parser = argparse.ArgumentParser('Saving data')
+    parser = argparse.ArgumentParser('Training prediction model')
     parser.add_argument('--n_epochs', '-e', type=int, default=10)
     parser.add_argument('--batch_size', '-b', type=int, default=3)
     parser.add_argument('--learning_rate', '-lr', type=float, default=0.001)
@@ -27,7 +28,7 @@ if __name__ == '__main__':
     args = parse_args()
         
     loading_path = args.data_path
-    config = load_data(os.path.join(loading_path, 'config_dataset.json'))
+    config = load_config(os.path.join(loading_path, 'config_dataset.json'))
 
     if args.device is None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -44,8 +45,8 @@ if __name__ == '__main__':
     n_agent_train, n_agent_test = config['n_agent_train'], config['n_agent_test']
 
     # Load data
-    train_data = load_data(os.path.join(loading_path, 'train_dataset.json')) 
-    test_data = load_data(os.path.join(loading_path, 'test_dataset.json'))
+    train_data = load_data(os.path.join(loading_path, 'train_dataset.pickle')) 
+    test_data = load_data(os.path.join(loading_path, 'test_dataset.pickle'))
 
     train_dataset = ToMNetDataset(**train_data)
     print('Training data {}'.format(len(train_data['target_actions'])))
@@ -76,7 +77,7 @@ if __name__ == '__main__':
     test_msg ='Test| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, test_dict['loss'], test_dict['accuracy'])
     print(test_msg)
 
-    # Save weights
+    # Save weights and training config
     if args.saving_name is None:
         date = date = datetime.now().strftime('%d-%m-%Y')
         saving_path = f'./model_weights/prednet_model_{date}.pt'
@@ -84,3 +85,11 @@ if __name__ == '__main__':
         saving_name = args.saving_name
         saving_path = f'./model_weights/prednet_model_{saving_name}.pt'
     torch.save(prednet.state_dict(), saving_path)
+
+    training_config = dict(batch_size=batch_size,
+                           lr=learning_rate,
+                           data_path=args.data_path)
+    config_saving_path = f'./model_weights/config_{saving_name}.pt'
+    with open(config_saving_path, "w") as f:
+        json.dump(training_config, f)
+    
