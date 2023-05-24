@@ -1,6 +1,8 @@
 import argparse
+from datetime import datetime
+
 from storage import Storage
-from nn_utils import save_data
+from nn_utils import save_data, save_config
 
 def parse_args():
     parser = argparse.ArgumentParser('Saving data')
@@ -11,6 +13,7 @@ def parse_args():
     parser.add_argument('--min_steps', '-min', type=int, default=0)
     parser.add_argument('--n_agent_train', type=int, default=100)
     parser.add_argument('--n_agent_test', type=int, default=100)
+    parser.add_argument('--saving_name', type=str, default=None)
     args = parser.parse_args()
     return args
 
@@ -49,17 +52,17 @@ if __name__ == '__main__':
 
         # Generate and save datasets
         print('Save config...')
-        save_data(config, 'config')
+        save_config(config, 'config', args.saving_name)
         print('Done')
 
         print(f'Generating and saving {train_store.length} training data ...')
         train_data = train_store.extract()
-        save_data(train_data, 'train')
+        save_data(train_data, 'train', args.saving_name)
         print('Done')
 
         print(f'Generating and saving {test_store.length} test data ...')
         test_data = test_store.extract()
-        save_data(test_data, 'test')
+        save_data(test_data, 'test', args.saving_name)
         print('Done')
 
 
