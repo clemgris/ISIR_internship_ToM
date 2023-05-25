@@ -52,7 +52,7 @@ class NaiveTeacher(Teacher):
         if method == 'Uniform':
             selected_idx = np.random.randint(0, self.num_demo_type)
         # Choose demonstration to satify the learner in any cases
-        elif method == 'Opt_non_adaptative':
+        elif method == 'Opt_non_adaptive':
             demo_values = []
             for demo_type in range(self.num_demo_type):
                 predicted_reward = 0
