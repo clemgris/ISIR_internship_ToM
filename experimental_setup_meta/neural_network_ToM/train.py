@@ -26,7 +26,7 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-        
+
     loading_path = args.data_path
     config = load_config(os.path.join(loading_path, 'config_dataset.json'))
 
@@ -42,14 +42,18 @@ if __name__ == '__main__':
     # Dataset parameters
     n_buttons, n_music = config['n_buttons'], config['n_music']
     num_past, max_steps, min_steps = config['num_past'], config['max_steps'], config['min_steps']
-    n_agent_train, n_agent_test = config['n_agent_train'], config['n_agent_test']
+    n_agent_train, n_agent_val, n_agent_test = config['n_agent_train'], config['n_agent_val'], config['n_agent_test']
 
     # Load data
-    train_data = load_data(os.path.join(loading_path, 'train_dataset.pickle')) 
+    train_data = load_data(os.path.join(loading_path, 'train_dataset.pickle'))
+    val_data = load_data(os.path.join(loading_path, 'val_dataset.pickle'))
     test_data = load_data(os.path.join(loading_path, 'test_dataset.pickle'))
 
     train_dataset = ToMNetDataset(**train_data)
     print('Training data {}'.format(len(train_data['target_actions'])))
+
+    val_dataset = ToMNetDataset(**val_data)
+    print('Validation data {}'.format(len(val_data['target_actions'])))
 
     test_dataset = ToMNetDataset(**test_data)
     print('Test data {}'.format(len(test_data['target_actions'])))
@@ -61,7 +65,8 @@ if __name__ == '__main__':
 
     # Load data and model 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
     prednet = PredNet(num_input=2, num_agent=n_agent_train, num_step=max_steps, n_buttons=n_buttons, device=device)
     optimizer = optim.Adam(prednet.parameters(), lr=learning_rate)
@@ -70,12 +75,21 @@ if __name__ == '__main__':
     for epoch in range(n_epochs):
         train_dict = prednet.train(train_loader, optimizer)
         train_msg ='Train| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, train_dict['loss'], train_dict['accuracy'])
+        if epoch % 10 == 0:
+            eval_val_dict = prednet.evaluate(val_loader)
+            eval_val_msg =' Val| Loss | {:.4f} | Acc | {:.4f} |'.format(eval_val_dict['loss'], eval_val_dict['accuracy'])
+            train_msg += eval_val_msg
+
         print(train_msg)
 
     # Evaluation
-    test_dict = prednet.evaluate(test_loader)
-    test_msg ='Test| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, test_dict['loss'], test_dict['accuracy'])
-    print(test_msg)
+    eval_test_dict = prednet.evaluate(test_loader)
+    eval_test_msg ='Eval on test| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, eval_test_dict['loss'], eval_test_dict['accuracy'])
+    print(eval_test_msg)
+
+    # eval_train_dict = prednet.evaluate(train_loader)
+    # eval_train_msg ='Eval on train| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, eval_train_dict['loss'], eval_train_dict['accuracy'])
+    # print(eval_train_msg)
 
     # Save weights and training config
     if args.saving_name is None:
@@ -90,6 +104,7 @@ if __name__ == '__main__':
                            lr=learning_rate,
                            data_path=args.data_path)
     config_saving_path = f'./model_weights/config_{saving_name}.pt'
+
     with open(config_saving_path, "w") as f:
         json.dump(training_config, f)
     

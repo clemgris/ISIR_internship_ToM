@@ -12,6 +12,7 @@ def parse_args():
     parser.add_argument('--max_steps', '-max', type=int, default=50)
     parser.add_argument('--min_steps', '-min', type=int, default=0)
     parser.add_argument('--n_agent_train', type=int, default=100)
+    parser.add_argument('--n_agent_val', type=int, default=100)
     parser.add_argument('--n_agent_test', type=int, default=100)
     parser.add_argument('--saving_name', type=str, default=None)
     args = parser.parse_args()
@@ -26,6 +27,7 @@ if __name__ == '__main__':
                 max_steps = args.max_steps,
                 min_steps = args.min_steps,
                 n_agent_train = args.n_agent_train,
+                n_agent_val = args.n_agent_val,
                 n_agent_test = args.n_agent_test,
                 )
 
@@ -36,6 +38,16 @@ if __name__ == '__main__':
                 num_past=config['num_past'],
                 num_types=4,
                 num_agents=config['n_agent_train'],
+                num_demo_types=4,
+                min_steps=config['min_steps']
+                )
+        
+        val_store = Storage(n_buttons=config['n_buttons'],
+                n_music=config['n_music'],
+                max_steps=config['max_steps'],
+                num_past=config['num_past'],
+                num_types=4,
+                num_agents=config['n_agent_val'],
                 num_demo_types=4,
                 min_steps=config['min_steps']
                 )
@@ -58,6 +70,11 @@ if __name__ == '__main__':
         print(f'Generating and saving {train_store.length} training data ...')
         train_data = train_store.extract()
         save_data(train_data, 'train', args.saving_name)
+        print('Done')
+
+        print(f'Generating and saving {val_store.length} validation data ...')
+        val_data = val_store.extract()
+        save_data(val_data, 'val', args.saving_name)
         print('Done')
 
         print(f'Generating and saving {test_store.length} test data ...')
