@@ -46,7 +46,7 @@ class BaysesianTeacher(Teacher):
         predicted_reward = np.sum(predicted_policy * self.env.R)
         return predicted_reward
     
-    def demonstrate(self, method: str='MAP', alpha: float=0) -> tuple:
+    def demonstrate(self, method: str='MAP', alpha: float=0, true_learner_type: int=None) -> tuple:
         # Compute utilities of each demonstration
         utilities = np.zeros(self.num_demo_type)
         predicted_type = self.predict_learner_type()
@@ -55,6 +55,9 @@ class BaysesianTeacher(Teacher):
                 utilities[ii] = self.predict_reward(demo, predicted_type) - cost(demo, alpha=alpha)
             elif method == 'Bayesian':
                 utilities[ii] = np.sum([self.predict_reward(demo, type) * self.beliefs[type] for type in range(self.num_types)]) - cost(demo, alpha=alpha)
+            elif method == 'Oracle':
+                assert(true_learner_type is not None)
+                utilities[ii] = self.predict_reward(demo, true_learner_type) - cost(demo, alpha=alpha)
             else:
                 raise ValueError('Unknown method')
         
