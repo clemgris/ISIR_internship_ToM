@@ -29,6 +29,8 @@ class Storage:
         self.demonstrations = np.zeros([self.length, self.n_buttons, self.n_buttons, 2])
         # Target actions (of the learner after seen the demo)
         self.target_actions = np.zeros([self.length])
+        # True position of the musical buttons
+        self.true_idx_musical = np.zeros([self.length, self.n_music])
     
     def extract(self):
         for type in range(self.num_types):
@@ -54,7 +56,8 @@ class Storage:
                     actions, rewards = agent.act(size=num_steps)
                     self.current_traj[idx, np.arange(num_steps), actions, 0] = 1
                     self.current_traj[idx, np.arange(num_steps), :, 1] = np.tile(rewards, (self.n_buttons, 1)).T
-
+                    # Position of the three musical buttons
+                    self.true_idx_musical [idx, :] = np.where(current_env.R == 1)[0]
                     # Reset agent believes
                     agent.init_env(current_env)
                     # Create demo
@@ -74,7 +77,8 @@ class Storage:
             past_traj = self.past_traj,
             current_traj = self.current_traj,
             demonstrations = self.demonstrations,
-            target_actions = self.target_actions
+            target_actions = self.target_actions,
+            true_idx_music=self.true_idx_musical
         )
 
     def reset(self):
@@ -82,3 +86,4 @@ class Storage:
         self.current_traj = np.zeros([self.length, self.max_steps, self.n_buttons, 2])
         self.demo = np.zeros([self.num_agents * self.num_types, self.max_steps, self.n_buttons, 2])
         self.target_actions = np.zeros([self.num_agents * self.num_types, self.n_buttons])
+        self.true_idx_musical = np.zeros([self.length, self.n_music])

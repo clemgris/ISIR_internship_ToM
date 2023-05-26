@@ -307,18 +307,20 @@ class PredNet(nn.Module):
     def train(self, data_loader: DataLoader, optim: Optimizer) -> dict:
         tot_loss = 0
         action_acc = 0
+        metric = 0
 
         criterion_nll = nn.NLLLoss()
 
         # for batch in tqdm(data_loader, leave=False, total=len(data_loader)):
         for i, batch in enumerate(tqdm(data_loader)):
 
-            past_traj, curr_traj, demo, target_action = batch
+            past_traj, curr_traj, demo, target_action, true_idx_music = batch
             
             past_traj = past_traj.float().to(self.device)
             curr_traj = curr_traj.float().to(self.device)
             demo = demo.float().to(self.device)
             target_action = target_action.long().to(self.device)
+            true_idx_music = true_idx_music.long().to(self.device)
 
             pred_action, e_char, e_mental, e_demo = self.forward(past_traj, curr_traj, demo)
 
@@ -334,25 +336,29 @@ class PredNet(nn.Module):
             tot_loss += loss.item()
 
             action_acc += (torch.sum(pred_action_ind == target_action).item() / len(target_action))
+            metric += (torch.sum(torch.any(target_action[:, None] == true_idx_music, dim=1)).item() / len(target_action))
 
         dicts = dict(accuracy=action_acc / len(data_loader),
-                     loss=tot_loss / len(data_loader))
+                     loss=tot_loss / len(data_loader),
+                     metric=metric / len(data_loader))
         return dicts
 
     def evaluate(self, data_loader: DataLoader) -> dict:
         tot_loss = 0
         action_acc = 0
+        metric = 0
 
         criterion_nll = nn.NLLLoss()
 
         for i, batch in enumerate(tqdm(data_loader)):
             with torch.no_grad():
-                past_traj, curr_state, demo, target_action = batch
+                past_traj, curr_state, demo, target_action, true_idx_music = batch
                 
                 past_traj = past_traj.float().to(self.device)
                 curr_state = curr_state.float().to(self.device)
                 demo = demo.float().to(self.device)
                 target_action = target_action.long().to(self.device)
+                true_idx_music = true_idx_music.long().to(self.device)
 
                 pred_action, e_char, e_mental, e_demo = self.forward(past_traj, curr_state, demo)
                 loss = criterion_nll(pred_action, target_action)
@@ -363,8 +369,10 @@ class PredNet(nn.Module):
             # print('pred_action_ind', pred_action_ind, 'target_action', target_action)
 
             action_acc += torch.sum(pred_action_ind == target_action).item() / len(target_action)
+            metric += (torch.sum(torch.any(target_action[:, None] == true_idx_music, dim=1)).item() / len(target_action))
         
         dicts = dict(accuracy=action_acc / len(data_loader),
-                     loss=tot_loss / len(data_loader))
+                     loss=tot_loss / len(data_loader),
+                     metric=metric / len(data_loader))
         
         return dicts
