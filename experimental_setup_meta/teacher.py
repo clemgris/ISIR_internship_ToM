@@ -1,3 +1,4 @@
+from environment import ButtonsToy
 import numpy as np
 from utils import draw
 from learner import compute_policy, bayesian_update, projection
@@ -55,16 +56,19 @@ class NaiveTeacher(Teacher):
         elif method == 'Opt_non_adaptive':
             demo_values = []
             for demo_type in range(self.num_demo_type):
-                predicted_reward = 0
+                predicted_tot_utility = 0
                 for type in range(self.num_types):
                     learner_beliefs_demo_env = 0.5 * np.ones((self.env.n_buttons, 2))
                     for a,r in zip(self.demonstrations[demo_type][0], self.demonstrations[demo_type][1]):
                         learner_beliefs_demo_env = projection(bayesian_update(learner_beliefs_demo_env, a, r), type)
                     predicted_policy = compute_policy(learner_beliefs_demo_env, self.env)
-                    predicted_reward += np.sum(predicted_policy * self.env.R)
-                demo_values.append(predicted_reward)
+                    # Sum over the learners of the utility of the demo for each learner
+                    predicted_tot_utility += (np.sum(predicted_policy * self.env.R) - cost(self.demonstrations[demo_type], alpha=alpha))
+                demo_values.append(predicted_tot_utility)
             argmax_set = np.where(np.isclose(demo_values, np.max(demo_values)))[0]
             selected_idx = np.random.choice(argmax_set)
         else:
             raise ValueError('Unknown method')
         return self.demonstrations[selected_idx]
+
+    
