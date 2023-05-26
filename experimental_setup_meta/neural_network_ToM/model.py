@@ -54,16 +54,35 @@ class CharNet(nn.Module):
                  num_input: int, 
                  num_step: int,
                  num_output: int,
+                 basic_layer='ResConv',
                  device: str='cuda'
                  ) -> None:
         
         super(CharNet, self).__init__()
 
-        self.conv1 = ResNetBlock(num_input, 4, 1).double().to(device)
-        self.conv2 = ResNetBlock(4, 8, 1).double().to(device)
-        self.conv3 = ResNetBlock(8, 16, 1).double().to(device)
-        self.conv4 = ResNetBlock(16, 32, 1).double().to(device)
-        self.conv5 = ResNetBlock(32, 32, 1).double().to(device)
+        self.basic_layer = basic_layer
+
+        if basic_layer == 'ResConv':
+            self.encoder = nn.Sequential(ResNetBlock(num_input, 4, 1).double().to(device),
+                                     ResNetBlock(4, 8, 1).double().to(device),
+                                     ResNetBlock(8, 16, 1).double().to(device),
+                                     ResNetBlock(16, 32, 1).double().to(device),
+                                     ResNetBlock(32, 32, 1).double().to(device),
+                                     nn.ReLU().double().to(device),
+                                     nn.BatchNorm1d(32).double().to(device), # [batch * num_step, output, n_buttons]
+                                     nn.AvgPool1d(20).double().to(device) # [batch * num_step, output, 1]
+                                     )
+
+        elif basic_layer == 'Linear':
+            self.encoder = nn.Sequential(nn.Flatten(), # [batch * num_step, num_inputs * 20]
+                                         nn.Linear(num_input * 20, 8).double().to(device),
+                                         nn.ReLU().double().to(device),
+                                         nn.Linear(8, 16).double().to(device),
+                                         nn.ReLU().double().to(device),
+                                         nn.Linear(16, 32).double().to(device),
+                                         nn.ReLU().double().to(device)
+                                         )
+
         self.bn = nn.BatchNorm1d(32).double().to(device)
         self.relu = nn.ReLU().double().to(device)
         self.lstm = nn.LSTM(32, 64).double().to(device)
@@ -90,15 +109,8 @@ class CharNet(nn.Module):
             obs_past = obs[:, p] # [batch, num_step, channel, n_buttons]
             obs_past = obs_past.permute(1, 0, 2, 3) # [num_step, batch, channel, n_buttons]
             obs_past = obs_past.reshape(-1, num_channel, n_buttons) # [batch * num_step, channel, n_buttons]
-            
-            x = self.conv1(obs_past)
-            x = self.conv2(x)
-            x = self.conv3(x)
-            x = self.conv4(x)
-            x = self.conv5(x)
-            x = self.relu(x)
-            x = self.bn(x) # [batch * num_step, output, n_buttons]
-            x = self.avgpool(x) # [batch * num_step, output, 1]
+
+            x = self.encoder(obs_past.double()) 
 
             x = x.view(num_step, batch_size, -1) # [num_step, batch, output]
             outs, _ = self.lstm(x, prev_h)
@@ -118,21 +130,44 @@ class MentalNet(nn.Module):
     def __init__(self, num_input: int, 
                  num_step: int, 
                  num_output: int,
+                 basic_layer='ResConv',
                  device: str='cuda'
                  ) -> None:
         
         super(MentalNet, self).__init__()
+        
+        self.basic_layer = basic_layer
 
-        self.conv1 = ResNetBlock(num_input, 4, 1).double().to(device)
-        self.conv2 = ResNetBlock(4, 8, 1).double().to(device)
-        self.conv3 = ResNetBlock(8, 16, 1).double().to(device)
-        self.conv4 = ResNetBlock(16, 32, 1).double().to(device)
-        self.conv5 = ResNetBlock(32, 32, 1).double().to(device)
+        if basic_layer == 'ResConv':
+            self.encoder = nn.Sequential(ResNetBlock(num_input, 4, 1).double().to(device),
+                                         ResNetBlock(4, 8, 1).double().to(device),
+                                         ResNetBlock(8, 16, 1).double().to(device),
+                                         ResNetBlock(16, 32, 1).double().to(device),
+                                         ResNetBlock(32, 32, 1).double().to(device),
+                                         nn.ReLU().double().to(device),
+                                         nn.BatchNorm1d(32).double().to(device) # [num_step * batch, output, n_buttons]
+                                         )
+            
+            self.layer_out = ResNetBlock(num_step * 32, num_output, 1).double().to(device)
+
+        elif basic_layer == 'Linear':
+            self.encoder = nn.Sequential(nn.Flatten(),
+                                         nn.Linear(num_input * 20, 8).double().to(device),
+                                         nn.ReLU().double().to(device),
+                                         nn.Linear(8, 16).double().to(device),
+                                         nn.ReLU().double().to(device),
+                                         nn.Linear(16, 32).double().to(device),
+                                         nn.ReLU().double().to(device)
+                                         ) # [num_step * batch, output]
+            
+            self.layer_out = nn.Sequential(nn.Flatten(),
+                                           nn.Linear(num_step * 32, num_output).double().to(device)
+                                           )
+
         self.bn = nn.BatchNorm1d(32).double().to(device)
         self.relu = nn.ReLU().double().to(device)
         self.lstm = nn.LSTM(32, 32).double().to(device)
-        self.conv_out = ResNetBlock(num_step * 32, num_output, 1).double().to(device)
-
+        
         self.device = device
 
     def init_hidden(self, input_dim: int) -> tuple:
@@ -148,23 +183,27 @@ class MentalNet(nn.Module):
         obs = obs.permute(1, 0, 2, 3) # [num_step, batch, channel, n_buttons]
         obs = obs.reshape(-1, num_channel, n_buttons) # [num_step * batch, channel, n_buttons]
         
-        x = self.conv1(obs)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = self.conv5(x)
-        x = self.relu(x)
-        x = self.bn(x) # [num_step * batch, output, n_buttons]
+        x = self.encoder(obs.double())
 
-        x = x.permute(0, 2, 1) # [num_step * batch, n_buttons, output]
-        x = x.reshape(num_step, batch_size * n_buttons, -1) # [num_step, batch * n_buttons, output]
-        prev_h = self.init_hidden(batch_size * n_buttons)
+        if self.basic_layer == 'ResConv':
+            x = x.permute(0, 2, 1) # [num_step * batch, n_buttons, output]
+            x = x.reshape(num_step, batch_size * n_buttons, -1) # [num_step, batch * n_buttons, output]
+            prev_h = self.init_hidden(batch_size * n_buttons)
+
+        elif self.basic_layer == 'Linear':
+            x = x.reshape(num_step, batch_size, -1) # [num_step, batch, output]
+            prev_h = self.init_hidden(batch_size )
+
         outs, _ = self.lstm(x, prev_h)
 
-        outs = outs.permute(1, 2, 0) # [batch * n_buttons, num_step, output]
-        outs = outs.reshape(batch_size, -1, n_buttons) # [batch, n_buttons, num_step * output]
-        e_mental = self.conv_out(outs) # [batch, n_buttons, output]
-        e_mental = e_mental.permute(0, 2, 1) # [batch, output, n_buttons]
+        outs = outs.permute(1, 2, 0) # [batch * n_buttons, num_step, output] or [batch, num_step, output]
+        if self.basic_layer == 'ResConv':
+            outs = outs.reshape(batch_size, -1, n_buttons) # [batch, n_buttons, num_step * output]
+        
+        e_mental = self.layer_out(outs) # [batch, n_buttons, output] or [batch, output]
+        
+        if self.basic_layer == 'ResConv':
+            e_mental = e_mental.permute(0, 2, 1) # [batch, output, n_buttons]
 
         return e_mental
     
@@ -176,46 +215,56 @@ class PredNet(nn.Module):
                   n_buttons: int,
                   num_output_char: int=8,
                   num_output_mental: int=32,
+                  basic_layer='ResConv',
                   device: str='cuda'
                   ) -> None:
         
         super(PredNet, self).__init__()
 
-        self.charnet = CharNet(num_input, num_step=num_step, num_output=num_output_char, device=device)
-        self.mentalnet_traj = MentalNet(num_input, num_step, num_output=num_output_mental, device=device)
-        self.mentalnet_demo = MentalNet(num_input, n_buttons, num_output=num_output_mental, device=device)
+        self.basic_layer = basic_layer
+        self.device = device
+        self.num_agent = num_agent
 
-        self.conv1 = ResNetBlock(2 * num_output_mental + num_output_char, 8, 1).double().to(device)
-        self.conv2 = ResNetBlock(8, 16, 1).double().to(device)
-        self.conv3 = ResNetBlock(16, 16, 1).double().to(device)
-        self.conv4 = ResNetBlock(16, 32, 1).double().to(device)
-        self.conv5 = ResNetBlock(32, 32, 1).double().to(device)
+        self.charnet = CharNet(num_input, num_step=num_step, num_output=num_output_char, basic_layer=basic_layer, device=device)
+        self.mentalnet_traj = MentalNet(num_input, num_step, num_output=num_output_mental, basic_layer=basic_layer, device=device)
+        self.mentalnet_demo = MentalNet(num_input, n_buttons, num_output=num_output_mental, basic_layer=basic_layer, device=device)
 
         # self.normal_conv1 = ConvBlock(14, 8, 1).double().to(device)
         # self.normal_conv2 = ConvBlock(8, 16, 1).double().to(device)
         # self.normal_conv3 = ConvBlock(16, 16, 1).double().to(device)
         # self.normal_conv4 = ConvBlock(16, 32, 1).double().to(device)
         # self.normal_conv5 = ConvBlock(32, 32, 1).double().to(device)
-        
-        self.avgpool = nn.AvgPool1d(20).double().to(device)
-        self.bn = nn.BatchNorm1d(32).double().to(device)
 
-        self.relu = nn.ReLU().double().to(device)
-        self.action_fc = nn.Linear(32, 5).double().to(device)
+        if basic_layer == 'ResConv':
+            self.encoder = nn.Sequential(ResNetBlock(2 * num_output_mental + num_output_char, 8, 1).double().to(device),
+                                         ResNetBlock(8, 16, 1).double().to(device),
+                                         ResNetBlock(16, 16, 1).double().to(device),
+                                         ResNetBlock(16, 32, 1).double().to(device),
+                                         ResNetBlock(32, 32, 1).double().to(device),
+                                         nn.ReLU().double().to(device),
+                                         nn.BatchNorm1d(32).double().to(device)
+                                         )
+            
+            self.action_head = nn.Sequential(nn.Conv1d(32, 32, 1, 1).double(),
+                                    nn.ReLU().double(),
+                                    nn.AvgPool1d(20).double(),
+                                    nn.Flatten().double(),
+                                    nn.Linear(32, 20).double(),
+                                    nn.LogSoftmax(dim=1).double()
+                                    ).to(device)
 
-        self.device = device
-        
-        self.softmax = nn.Softmax().double().to(device)
-        self.num_agent = num_agent
-
-        self.action_head = nn.Sequential(
-            nn.Conv1d(32, 32, 1, 1).double(),
-            nn.ReLU().double(),
-            nn.AvgPool1d(20).double(),
-            nn.Flatten().double(),
-            nn.Linear(32, 20).double(),
-            nn.LogSoftmax(dim=1).double()
-        ).to(device)
+        elif basic_layer == 'Linear':
+            self.encoder = nn.Sequential(nn.Flatten(),
+                                         nn.Linear(2 * num_output_mental + num_output_char, 8).double().to(device),
+                                         nn.ReLU().double().to(device),
+                                         nn.Linear(8, 16).double().to(device),
+                                         nn.ReLU().double().to(device),
+                                         nn.Linear(16, 32).double().to(device),
+                                         nn.ReLU().double().to(device))
+            
+            self.action_head = nn.Sequential(nn.Linear(32, 20).double().to(device),
+                                             nn.LogSoftmax(dim=1).double().to(device)
+                                             )
 
     def forward(self, past_traj: torch.tensor, current_traj: torch.tensor, demo: torch.tensor) -> tuple:
     
@@ -225,8 +274,9 @@ class PredNet(nn.Module):
             e_char = torch.zeros((batch_size, 8, n_buttons), device=self.device)
         else:
             e_char = self.charnet(past_traj)
-            e_char = e_char[..., None]
-            e_char = e_char.repeat(1, 1, n_buttons) # [batch, num_output_char, n_buttons]
+            if self.basic_layer == 'ResConv':
+                e_char = e_char[..., None]
+                e_char = e_char.repeat(1, 1, n_buttons) # [batch, num_output_char, n_buttons]
 
         # Current traj
         _, num_step, _, _ = current_traj.shape
@@ -234,7 +284,8 @@ class PredNet(nn.Module):
             e_mental = torch.zeros((batch_size, 2, n_buttons))
         else:
             e_mental = self.mentalnet_traj(current_traj)
-            e_mental = e_mental.permute(0, 2, 1) # [batch, num_output_mental, n_buttons]
+            if self.basic_layer == 'ResConv':
+                e_mental = e_mental.permute(0, 2, 1) # [batch, num_output_mental, n_buttons]
 
         # Demonstration
         _, num_step, _, _ = current_traj.shape
@@ -242,18 +293,13 @@ class PredNet(nn.Module):
             e_demo = torch.zeros((batch_size, 8, n_buttons))
         else:
             e_demo = self.mentalnet_demo(demo)
-            e_demo = e_demo.permute(0, 2, 1) # [batch, num_output_mental, n_buttons]
+            if self.basic_layer == 'ResConv':
+                e_demo = e_demo.permute(0, 2, 1) # [batch, num_output_mental, n_buttons]
 
-        x_concat = torch.cat([e_char, e_mental, e_demo], axis=1) # [batch, num_output_char + num_output_mental * 2, n_buttons]
+        x_concat = torch.cat([e_char, e_mental, e_demo], axis=1) # [batch, num_output_char + num_output_mental * 2, n_buttons] or
+                                                                 # [batch, num_output_char + num_output_mental * 2]
 
-        x = self.conv1(x_concat)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = self.conv5(x)
-        x = self.relu(x)
-        x = self.bn(x)
-
+        x = self.encoder(x_concat)
         action = self.action_head(x)
 
         return action, e_char, e_mental, e_demo
