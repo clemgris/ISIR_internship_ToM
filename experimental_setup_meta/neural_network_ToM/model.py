@@ -209,8 +209,7 @@ class MentalNet(nn.Module):
     
 class PredNet(nn.Module):
     def __init__(self, 
-                 num_input: int,
-                  num_agent: int, 
+                 num_input: int, 
                   num_step: int,
                   n_buttons: int,
                   num_output_char: int=8,
@@ -223,7 +222,9 @@ class PredNet(nn.Module):
 
         self.basic_layer = basic_layer
         self.device = device
-        self.num_agent = num_agent
+
+        self.num_output_char = num_output_char
+        self.num_output_mental = num_output_mental
 
         self.charnet = CharNet(num_input, num_step=num_step, num_output=num_output_char, basic_layer=basic_layer, device=device)
         self.mentalnet_traj = MentalNet(num_input, num_step, num_output=num_output_mental, basic_layer=basic_layer, device=device)
@@ -271,7 +272,7 @@ class PredNet(nn.Module):
         # Past traj
         batch_size, num_past, num_step, n_buttons, _ = past_traj.shape
         if num_past == 0:
-            e_char = torch.zeros((batch_size, 8, n_buttons), device=self.device)
+            e_char = torch.zeros((batch_size, self.num_output_char, n_buttons), device=self.device)
         else:
             e_char = self.charnet(past_traj)
             if self.basic_layer == 'ResConv':
@@ -281,7 +282,7 @@ class PredNet(nn.Module):
         # Current traj
         _, num_step, _, _ = current_traj.shape
         if num_step == 0:
-            e_mental = torch.zeros((batch_size, 2, n_buttons))
+            e_mental = torch.zeros((batch_size, self.num_output_mental, n_buttons))
         else:
             e_mental = self.mentalnet_traj(current_traj)
             if self.basic_layer == 'ResConv':
@@ -290,7 +291,7 @@ class PredNet(nn.Module):
         # Demonstration
         _, num_step, _, _ = current_traj.shape
         if num_step == 0:
-            e_demo = torch.zeros((batch_size, 8, n_buttons))
+            e_demo = torch.zeros((batch_size, self.num_output_mental, n_buttons))
         else:
             e_demo = self.mentalnet_demo(demo)
             if self.basic_layer == 'ResConv':
@@ -336,7 +337,7 @@ class PredNet(nn.Module):
             tot_loss += loss.item()
 
             action_acc += (torch.sum(pred_action_ind == target_action).item() / len(target_action))
-            metric += (torch.sum(torch.any(target_action[:, None] == true_idx_music, dim=1)).item() / len(target_action))
+            metric += (torch.sum(torch.any(pred_action_ind[:, None] == true_idx_music, dim=1)).item() / len(target_action))
 
         dicts = dict(accuracy=action_acc / len(data_loader),
                      loss=tot_loss / len(data_loader),

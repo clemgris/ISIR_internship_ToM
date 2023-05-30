@@ -16,6 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser('Training prediction model')
     parser.add_argument('--n_epochs', '-e', type=int, default=10),
     parser.add_argument('--basic_layer', type=str, default='Linear')
+    parser.add_argument('--e_char_dim', type=int, default=8)
     parser.add_argument('--batch_size', '-b', type=int, default=3)
     parser.add_argument('--learning_rate', '-lr', type=float, default=0.001)
     parser.add_argument('--device', type=str, default=None)
@@ -23,7 +24,6 @@ def parse_args():
     parser.add_argument('--saving_name', type=str, default=None)
     args = parser.parse_args()
     return args
-
 
 if __name__ == '__main__':
     args = parse_args()
@@ -80,12 +80,13 @@ if __name__ == '__main__':
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
-    prednet = PredNet(num_input=2, 
-                      num_agent=n_agent_train, 
+    prednet = PredNet(num_input=2,
                       num_step=max_steps, 
                       n_buttons=n_buttons, 
-                      basic_layer=args.basic_layer, 
+                      basic_layer=args.basic_layer,
+                      num_output_char=args.e_char_dim,
                       device=device)
+    
     optimizer = optim.Adam(prednet.parameters(), lr=learning_rate)
 
     # Training loop
@@ -119,6 +120,7 @@ if __name__ == '__main__':
             torch.save(prednet.state_dict(), saving_path) # save model
             training_config = dict(n_epochs=epoch,
                                    basic_layer=args.basic_layer,
+                                   e_char_dim=args.e_char_dim,
                                     batch_size=batch_size,
                                     lr=learning_rate,
                                     data_path=args.data_path)
