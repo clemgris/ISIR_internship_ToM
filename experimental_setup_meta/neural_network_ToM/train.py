@@ -61,8 +61,8 @@ if __name__ == '__main__':
 
     # Saving weights and training config parameters
     if args.saving_name is None:
-        date = date = datetime.now().strftime('%d-%m-%Y')
-        saving_name = date
+        date = datetime.now().strftime('%d.%m.%Y.%H.%M')
+        saving_name = '_'.join((args.data_path[7:], date))
     else:
         saving_name = args.saving_name
     make_dirs(f'./model_weights/{saving_name}')
