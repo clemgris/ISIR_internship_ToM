@@ -370,7 +370,7 @@ class PredNet(nn.Module):
             # print('pred_action_ind', pred_action_ind, 'target_action', target_action)
 
             action_acc += torch.sum(pred_action_ind == target_action).item() / len(target_action)
-            metric += (torch.sum(torch.any(target_action[:, None] == true_idx_music, dim=1)).item() / len(target_action))
+            metric += (torch.sum(torch.any(pred_action_ind[:, None] == true_idx_music, dim=1)).item() / len(target_action))
         
         dicts = dict(accuracy=action_acc / len(data_loader),
                      loss=tot_loss / len(data_loader),
