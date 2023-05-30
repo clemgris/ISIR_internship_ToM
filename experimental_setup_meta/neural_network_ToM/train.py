@@ -95,6 +95,7 @@ if __name__ == '__main__':
     test_outputs = {}
 
     best_model_acc = 0
+    best_model_loss = 1e10
     for epoch in range(n_epochs):
         train_dict = prednet.train(train_loader, optimizer)
         train_msg ='Train| Epoch {} Loss | {:.4f} | Acc | {:.4f} | Metric | {:.4f} | '.format(epoch, train_dict['loss'], 
@@ -114,8 +115,12 @@ if __name__ == '__main__':
         train_msg += eval_val_msg
 
         # Save best model based on the accuracy on the validation set 
-        if eval_val_dict['accuracy'] > best_model_acc:
-            best_model_acc = eval_val_dict['accuracy']
+        # if eval_val_dict['accuracy'] > best_model_acc:
+        #     best_model_acc = eval_val_dict['accuracy']
+
+        # Save best model based on the loss value on the validation set
+        if eval_val_dict['loss'] < best_model_loss:
+            best_model_loss = eval_val_dict['loss']
             
             torch.save(prednet.state_dict(), saving_path) # save model
             training_config = dict(n_epochs=epoch,
