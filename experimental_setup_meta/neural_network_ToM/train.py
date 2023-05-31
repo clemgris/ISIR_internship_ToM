@@ -66,8 +66,13 @@ if __name__ == '__main__':
     else:
         saving_name = args.saving_name
     make_dirs(f'./model_weights/{saving_name}')
-    saving_path = f'./model_weights/{saving_name}/prednet_model.pt'
-    config_saving_path = f'./model_weights/{saving_name}/config.json'
+
+    saving_path_loss = f'./model_weights/{saving_name}/prednet_model_best_loss.pt'
+    config_saving_path_loss = f'./model_weights/{saving_name}/config_best_loss.json'
+
+    saving_path_acc = f'./model_weights/{saving_name}/prednet_model_best_acc.pt'
+    config_saving_path_acc = f'./model_weights/{saving_name}/config_best_acc.json'
+
     outputs_saving_path = f'./model_weights/{saving_name}/outputs.json'
 
     # Training parameters
@@ -113,16 +118,13 @@ if __name__ == '__main__':
                                          accuracy=eval_val_dict['accuracy'],
                                          metric=eval_val_dict['metric'])
         train_msg += eval_val_msg
+        print(train_msg)
 
         # Save best model based on the accuracy on the validation set 
-        # if eval_val_dict['accuracy'] > best_model_acc:
-        #     best_model_acc = eval_val_dict['accuracy']
+        if eval_val_dict['accuracy'] > best_model_acc:
+            best_model_acc = eval_val_dict['accuracy']
 
-        # Save best model based on the loss value on the validation set
-        if eval_val_dict['loss'] < best_model_loss:
-            best_model_loss = eval_val_dict['loss']
-            
-            torch.save(prednet.state_dict(), saving_path) # save model
+            torch.save(prednet.state_dict(), saving_path_acc) # save model
             training_config = dict(n_epochs=epoch,
                                    basic_layer=args.basic_layer,
                                    e_char_dim=args.e_char_dim,
@@ -130,10 +132,30 @@ if __name__ == '__main__':
                                     lr=learning_rate,
                                     data_path=args.data_path)
             
-            with open(config_saving_path, "w") as f: # save config
+            with open(config_saving_path_acc, "w") as f: # save config
                 json.dump(training_config, f)
 
-        print(train_msg)
+        # Save best model based on the loss value on the validation set
+        if eval_val_dict['loss'] < best_model_loss:
+            best_model_loss = eval_val_dict['loss']
+            
+            torch.save(prednet.state_dict(), saving_path_loss) # save model
+            training_config = dict(n_epochs=epoch,
+                                   basic_layer=args.basic_layer,
+                                   e_char_dim=args.e_char_dim,
+                                    batch_size=batch_size,
+                                    lr=learning_rate,
+                                    data_path=args.data_path)
+            
+            with open(config_saving_path_loss, "w") as f: # save config
+                json.dump(training_config, f)
+
+        # Save outputs (NLL loss and accuracy)
+        dict_outputs = dict(train=training_outputs,
+                            val=validation_outputs)
+        
+        with open(outputs_saving_path, "w") as f:
+            json.dump(dict_outputs, f)
 
     # Evaluation
     eval_test_dict = prednet.evaluate(test_loader)
@@ -152,10 +174,6 @@ if __name__ == '__main__':
     
     with open(outputs_saving_path, "w") as f:
         json.dump(dict_outputs, f)
-
-    # eval_train_dict = prednet.evaluate(train_loader)
-    # eval_train_msg ='Eval on train| Epoch {} Loss | {:.4f} | Acc | {:.4f} |'.format(epoch, eval_train_dict['loss'], eval_train_dict['accuracy'])
-    # print(eval_train_msg)
 
 
     
