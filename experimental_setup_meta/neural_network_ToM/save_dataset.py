@@ -11,6 +11,7 @@ def parse_args():
     parser.add_argument('--num_past', '-np', type=int, default=10)
     parser.add_argument('--max_steps', '-max', type=int, default=50)
     parser.add_argument('--min_steps', '-min', type=int, default=0)
+    parser.add_argument('--max_steps_current', type=int, default=50)
     parser.add_argument('--n_agent_train', type=int, default=100)
     parser.add_argument('--n_agent_val', type=int, default=100)
     parser.add_argument('--n_agent_test', type=int, default=100)
@@ -26,6 +27,7 @@ if __name__ == '__main__':
                 num_past = args.num_past,
                 max_steps = args.max_steps,
                 min_steps = args.min_steps,
+                max_steps_current = args.max_steps_current,
                 n_agent_train = args.n_agent_train,
                 n_agent_val = args.n_agent_val,
                 n_agent_test = args.n_agent_test,
@@ -35,6 +37,7 @@ if __name__ == '__main__':
         train_store = Storage(n_buttons=config['n_buttons'],
                 n_music=config['n_music'],
                 max_steps=config['max_steps'],
+                max_steps_current=config['max_steps_current'],
                 num_past=config['num_past'],
                 num_types=4,
                 num_agents=config['n_agent_train'],
@@ -45,6 +48,7 @@ if __name__ == '__main__':
         val_store = Storage(n_buttons=config['n_buttons'],
                 n_music=config['n_music'],
                 max_steps=config['max_steps'],
+                max_steps_current=config['max_steps_current'],
                 num_past=config['num_past'],
                 num_types=4,
                 num_agents=config['n_agent_val'],
@@ -55,6 +59,7 @@ if __name__ == '__main__':
         test_store = Storage(n_buttons=config['n_buttons'],
                 n_music=config['n_music'],
                 max_steps=config['max_steps'],
+                max_steps_current=config['max_steps_current'],
                 num_past=config['num_past'],
                 num_types=4,
                 num_agents=config['n_agent_test'],

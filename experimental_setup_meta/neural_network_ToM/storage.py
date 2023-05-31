@@ -9,13 +9,15 @@ from environment import ButtonsToy
 
 class Storage:
 
-    def __init__(self, n_buttons, n_music, max_steps, num_past, num_types, num_agents, num_demo_types, min_steps=10) -> None:
+    def __init__(self, n_buttons, n_music, max_steps, max_steps_current,
+                 num_past, num_types, num_agents, num_demo_types, min_steps=10) -> None:
         # Environments parameters
         self.n_buttons = n_buttons
         self.n_music = n_music
         # Trajectories and population to be trained on parameters
         self.max_steps = max_steps
         self.min_steps = min_steps
+        self.max_steps_current = max_steps_current
         self.num_past = num_past
         self.num_types = num_types
         self.num_agents = num_agents # per type
@@ -52,10 +54,11 @@ class Storage:
                     # Store current trajectory
                     current_env = ButtonsToy(self.n_buttons, self.n_music)
                     agent.init_env(current_env)
-                    num_steps = np.random.randint(self.min_steps, self.max_steps)
-                    actions, rewards = agent.act(size=num_steps)
-                    self.current_traj[idx, np.arange(num_steps), actions, 0] = 1
-                    self.current_traj[idx, np.arange(num_steps), :, 1] = np.tile(rewards, (self.n_buttons, 1)).T
+                    if self.max_steps_current > 0:
+                        num_steps = np.random.randint(self.min_steps, self.max_steps_current)
+                        actions, rewards = agent.act(size=num_steps)
+                        self.current_traj[idx, np.arange(num_steps), actions, 0] = 1
+                        self.current_traj[idx, np.arange(num_steps), :, 1] = np.tile(rewards, (self.n_buttons, 1)).T
                     # Position of the three musical buttons
                     self.true_idx_musical [idx, :] = np.where(current_env.R == 1)[0]
                     # Reset agent believes
