@@ -31,6 +31,7 @@ if __name__ == '__main__':
                 n_agent_train = args.n_agent_train,
                 n_agent_val = args.n_agent_val,
                 n_agent_test = args.n_agent_test,
+                true_types=True
                 )
 
         # Storing

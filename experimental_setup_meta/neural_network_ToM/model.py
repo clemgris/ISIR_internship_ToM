@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 from torch.utils.data import DataLoader
 from torch.optim.optimizer import Optimizer
+from nn_utils import batch_compute_true_policy
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1) -> None:
@@ -192,7 +193,7 @@ class MentalNet(nn.Module):
 
         elif self.basic_layer == 'Linear':
             x = x.reshape(num_step, batch_size, -1) # [num_step, batch, output]
-            prev_h = self.init_hidden(batch_size )
+            prev_h = self.init_hidden(batch_size)
 
         outs, _ = self.lstm(x, prev_h)
 
@@ -215,10 +216,19 @@ class PredNet(nn.Module):
                   num_output_char: int=8,
                   num_output_mental: int=32,
                   basic_layer='ResConv',
-                  device: str='cuda'
+                  device: str='cuda',
+                  num_types: int=4,
+                  num_demo_types: int=4,
+                  using_dist: bool=False
                   ) -> None:
         
         super(PredNet, self).__init__()
+
+        self.num_types = num_types
+        self.num_demo_types = num_demo_types
+        self.n_buttons = n_buttons
+
+        self.using_dist = using_dist
 
         self.basic_layer = basic_layer
         self.device = device
@@ -229,12 +239,6 @@ class PredNet(nn.Module):
         self.charnet = CharNet(num_input, num_step=num_step, num_output=num_output_char, basic_layer=basic_layer, device=device)
         self.mentalnet_traj = MentalNet(num_input, num_step, num_output=num_output_mental, basic_layer=basic_layer, device=device)
         self.mentalnet_demo = MentalNet(num_input, n_buttons, num_output=num_output_mental, basic_layer=basic_layer, device=device)
-
-        # self.normal_conv1 = ConvBlock(14, 8, 1).double().to(device)
-        # self.normal_conv2 = ConvBlock(8, 16, 1).double().to(device)
-        # self.normal_conv3 = ConvBlock(16, 16, 1).double().to(device)
-        # self.normal_conv4 = ConvBlock(16, 32, 1).double().to(device)
-        # self.normal_conv5 = ConvBlock(32, 32, 1).double().to(device)
 
         if basic_layer == 'ResConv':
             self.encoder = nn.Sequential(ResNetBlock(2 * num_output_mental + num_output_char, 8, 1).double().to(device),
@@ -312,10 +316,11 @@ class PredNet(nn.Module):
 
         criterion_nll = nn.NLLLoss()
 
-        # for batch in tqdm(data_loader, leave=False, total=len(data_loader)):
         for i, batch in enumerate(tqdm(data_loader)):
-
-            past_traj, curr_traj, demo, target_action, true_idx_music = batch
+            if self.using_dist:
+                past_traj, curr_traj, demo, target_action, true_idx_music, _ = batch
+            else:
+                past_traj, curr_traj, demo, target_action, true_idx_music = batch
             
             past_traj = past_traj.float().to(self.device)
             curr_traj = curr_traj.float().to(self.device)
@@ -348,12 +353,17 @@ class PredNet(nn.Module):
         tot_loss = 0
         action_acc = 0
         metric = 0
+        dist = 0
 
         criterion_nll = nn.NLLLoss()
 
         for i, batch in enumerate(tqdm(data_loader)):
+
             with torch.no_grad():
-                past_traj, curr_state, demo, target_action, true_idx_music = batch
+                if self.using_dist:
+                    past_traj, curr_state, demo, target_action, true_idx_music, true_types = batch
+                else:
+                    past_traj, curr_state, demo, target_action, true_idx_music = batch
                 
                 past_traj = past_traj.float().to(self.device)
                 curr_state = curr_state.float().to(self.device)
@@ -369,11 +379,23 @@ class PredNet(nn.Module):
             pred_action_ind = torch.argmax(pred_action, dim=-1)
             # print('pred_action_ind', pred_action_ind, 'target_action', target_action)
 
-            action_acc += torch.sum(pred_action_ind == target_action).item() / len(target_action)
+            action_acc += (torch.sum(pred_action_ind == target_action).item() / len(target_action))
             metric += (torch.sum(torch.any(pred_action_ind[:, None] == true_idx_music, dim=1)).item() / len(target_action))
+
+            if self.using_dist:
+                pred_policy = torch.exp(pred_action) / torch.sum(torch.exp(pred_action))
+                true_policy = torch.tensor(batch_compute_true_policy(true_types, demo.cpu().detach().numpy(), self.n_buttons)).to(self.device)
+                dist += torch.mean(nn.MSELoss(reduction='sum')(pred_policy, true_policy))
+
+                # print('true policy', true_policy)
+                # print('predicted policy', pred_policy)
+                # print(torch.mean(nn.MSELoss(reduction='sum')(pred_policy, true_policy)))
         
         dicts = dict(accuracy=action_acc / len(data_loader),
                      loss=tot_loss / len(data_loader),
                      metric=metric / len(data_loader))
+        
+        if self.using_dist:
+            dicts['dist'] = dist.cpu().detach().numpy() / len(data_loader)
         
         return dicts

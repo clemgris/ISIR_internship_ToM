@@ -33,6 +33,8 @@ class Storage:
         self.target_actions = np.zeros([self.length])
         # True position of the musical buttons
         self.true_idx_musical = np.zeros([self.length, self.n_music])
+        # True type of the learner
+        self.true_types = np.zeros([self.length])
     
     def extract(self):
         for type in range(self.num_types):
@@ -41,6 +43,8 @@ class Storage:
                 for demo_type in range(self.num_demo_types):
                     # Ravel
                     idx = type * self.num_agents * self.num_demo_types + n_agent * self.num_demo_types + demo_type
+                    # Store type
+                    self.true_types[idx] = type
                     # Store past trajectories
                     for nn in range(self.num_past):
                         past_env = ButtonsToy(self.n_buttons, self.n_music)
@@ -81,7 +85,8 @@ class Storage:
             current_traj = self.current_traj,
             demonstrations = self.demonstrations,
             target_actions = self.target_actions,
-            true_idx_music=self.true_idx_musical
+            true_idx_music=self.true_idx_musical,
+            true_types=self.true_types
         )
 
     def reset(self):
@@ -90,3 +95,4 @@ class Storage:
         self.demo = np.zeros([self.num_agents * self.num_types, self.max_steps, self.n_buttons, 2])
         self.target_actions = np.zeros([self.num_agents * self.num_types, self.n_buttons])
         self.true_idx_musical = np.zeros([self.length, self.n_music])
+        self.true_types = np.zeros([self.length])
