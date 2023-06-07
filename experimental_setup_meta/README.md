@@ -21,7 +21,8 @@ In the second phase, the teacher choses the demonstration that maximizes their u
 ### Training
      python train.py --n_epochs 50 --basic_layer ResConv --e_char_dim 8 --batch_size 1 --data_path ./data/dataset
 # Experiments
-All the experiments are conducted in the notebook 
-    ""experiments.ipynb""
+All the experiments are conducted in the notebook
+
+    experiments.ipynb
     
 We tried the robustness of both methods using useen learner type (out of the Bayesian belief's support and out of the training set) as we tested the adaptability of the teacher opposed to a changeable learner.
