@@ -14,6 +14,7 @@ We implemented the Theory of Mind (ToM) mechanism as a Bayesian process. The tea
 In the second phase, the teacher selects the demonstration to show based on its beliefs, using either maximum a posteriori or weighted maximum utility criteria.
 ## ToMNet
 In 
+
     neural_network_ToM.py
     
 We modelled ToM mechanism using a policy prediction model proposed by Neil C. Rabinowitz et al. (2018) in the paper [Machine theory of mind](https://arxiv.org/abs/1802.07740). The model takes as inputs previous trajectories of the learner in different environenments (toy configurations) and a possible demonstration and outputs the predicted policy of the learner.
