@@ -14,6 +14,11 @@ class ToMNetDataset(Dataset):
         return len(self.target_actions)
 
     def __getitem__(self, ind):
-            return self.past_traj[ind], self.current_traj[ind], \
-                   self.demonstrations[ind], self.target_actions[ind], \
-                   self.true_idx_mudic[ind], self.true_types[ind]
+            if self.true_types is None:
+                return self.past_traj[ind], self.current_traj[ind], \
+                       self.demonstrations[ind], self.target_actions[ind], \
+                       self.true_idx_mudic[ind]
+            else:
+                return self.past_traj[ind], self.current_traj[ind], \
+                       self.demonstrations[ind], self.target_actions[ind], \
+                       self.true_idx_mudic[ind], self.true_types[ind]
