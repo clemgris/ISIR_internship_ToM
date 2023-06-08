@@ -41,8 +41,8 @@ class BaysesianTeacher(Teacher):
     def predict_reward(self, demonstration: tuple, predicted_type: int) -> float:
         learner_beliefs_demo_env = self.learner_beliefs.copy()
         for a,r in zip(demonstration[0], demonstration[1]):
-            learner_beliefs_demo_env = projection(bayesian_update(learner_beliefs_demo_env, a, r), predicted_type)
-        predicted_policy = compute_policy(learner_beliefs_demo_env, self.env)
+            learner_beliefs_demo_env = bayesian_update(learner_beliefs_demo_env, a, r)
+        predicted_policy = compute_policy(projection(learner_beliefs_demo_env, predicted_type), self.env)
         predicted_reward = np.sum(predicted_policy * self.env.R)
         return predicted_reward
     
