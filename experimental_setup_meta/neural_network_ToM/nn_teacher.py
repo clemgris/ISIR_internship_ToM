@@ -13,12 +13,15 @@ from neural_network_ToM.nn_utils import load_config
 # ToM teacher: NN model of the learner
 class ToMNetTeacher(Teacher):
     
-    def __init__(self, env: ButtonsToy, num_types: int, max_steps: int, loading_path: str, criterion: str='loss', device: str=None) -> None:
+    def __init__(self, env: ButtonsToy, num_types: int, max_steps: int, loading_path: str, 
+                 criterion: str='loss', device: str=None, use_e_mental: bool=None) -> None:
         super().__init__(env, num_types)
 
         model_loading_path = os.path.join(loading_path, f'prednet_model_best_{criterion}.pt')
         if device == None:
             self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        else:
+            self.device = device
 
         model_config = load_config(os.path.join(loading_path, f'config_best_{criterion}.json'))
 
@@ -33,7 +36,8 @@ class ToMNetTeacher(Teacher):
                         n_buttons=env.n_buttons,
                         num_output_char=model_config['e_char_dim'],
                         basic_layer= model_config['basic_layer'],
-                        device=device)
+                        device=device,
+                        use_e_mental=use_e_mental)
 
         self.model.load_state_dict(torch.load(model_loading_path))
         self.init_env(env)
@@ -64,14 +68,14 @@ class ToMNetTeacher(Teacher):
             one_hot_demo[ii, :, 1] = np.ones(self.env.n_buttons) * r
         
         # Convert into tensors
-        observed_traj_tensor = torch.from_numpy(self.observed_traj[None,...])
-        current_traj_tensor = torch.from_numpy(self.current_traj[None,...])
-        demo_tensor = torch.from_numpy(one_hot_demo[None,...])
+        observed_traj_tensor = torch.from_numpy(self.observed_traj[None,...]).to(self.device)
+        current_traj_tensor = torch.from_numpy(self.current_traj[None,...]).to(self.device)
+        demo_tensor = torch.from_numpy(one_hot_demo[None,...]).to(self.device)
 
         # Model inference
         pred_action, _, _, _ = self.model(observed_traj_tensor, current_traj_tensor, demo_tensor)
-
-        predicted_reward = np.sum(pred_action.detach().numpy() * self.env.R)
+        pred_policy = np.exp(pred_action.cpu().detach().numpy()) / np.exp(pred_action.cpu().detach().numpy()).sum()
+        predicted_reward = np.sum(pred_policy * self.env.R)
         return predicted_reward
 
     def demonstrate(self, method: str=None, alpha: float=0, true_learner_type: int=None) -> tuple:
