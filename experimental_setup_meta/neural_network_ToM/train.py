@@ -38,15 +38,19 @@ if __name__ == '__main__':
     else:
         raise ValueError('Unknown device type')
     
-    print(f'Working on device {device}')
+    print(f'Working on device: {device}')
 
     # Dataset parameters
     n_buttons, n_music = config['n_buttons'], config['n_music']
-    num_past, max_steps, min_steps = config['num_past'], config['max_steps'], config['min_steps']
+    num_past, max_steps, min_steps, max_steps_current = config['num_past'], config['max_steps'], config['min_steps'], config['max_steps_current']
     n_agent_train, n_agent_val, n_agent_test = config['n_agent_train'], config['n_agent_val'], config['n_agent_test']
 
-    using_dist = 'true_types' in config.keys()
-    print('Dataset with true learner types', using_dist)
+    # Network block to compute mental state on the current env
+    use_e_mental = not (max_steps_current == 0)
+    print(f'Using MentalNet block: {use_e_mental}')
+
+    using_dist = config['true_types'] if 'true_types' in config.keys() else False
+    print(f'Dataset with true learner types: {using_dist}')
 
     # Load data
     train_data = load_data(os.path.join(loading_path, 'train_dataset.pickle'))
@@ -97,7 +101,8 @@ if __name__ == '__main__':
                       basic_layer=args.basic_layer,
                       num_output_char=args.e_char_dim,
                       device=device,
-                      using_dist=using_dist)
+                      using_dist=using_dist,
+                      use_e_mental=use_e_mental)
     
     optimizer = optim.Adam(prednet.parameters(), lr=learning_rate)
 
