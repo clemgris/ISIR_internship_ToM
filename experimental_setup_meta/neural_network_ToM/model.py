@@ -3,6 +3,9 @@ import torch as torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
+import sys
+sys.path.append('/home/chetouani/Documents/STAGE_Clemence/ISIR_internship_ToM/experimental_setup_meta/neural_network_ToM')
+
 from torch.utils.data import DataLoader
 from torch.optim.optimizer import Optimizer
 from nn_utils import batch_compute_true_policy
@@ -199,23 +202,21 @@ class MentalNet(nn.Module):
 
         outs = outs.permute(1, 2, 0) # [batch * n_buttons, num_step, output] or [batch, num_step, output]
         if self.basic_layer == 'ResConv':
-            outs = outs.reshape(batch_size, -1, n_buttons) # [batch, n_buttons, num_step * output]
+            outs = outs.reshape(batch_size, -1, n_buttons) # [batch, num_step * output, n_buttons]
         
-        e_mental = self.layer_out(outs) # [batch, n_buttons, output] or [batch, output]
-        
-        if self.basic_layer == 'ResConv':
-            e_mental = e_mental.permute(0, 2, 1) # [batch, output, n_buttons]
+        e_mental = self.layer_out(outs) # [batch, output, n_buttons] or [batch, output]
 
         return e_mental
     
 class PredNet(nn.Module):
     def __init__(self, 
-                 num_input: int, 
+                 num_input: int,
                   num_step: int,
                   n_buttons: int,
                   num_output_char: int=8,
                   num_output_mental: int=32,
-                  basic_layer='ResConv',
+                  basic_layer: str='ResConv',
+                  use_e_mental: bool=True,
                   device: str='cuda',
                   num_types: int=4,
                   num_demo_types: int=4,
@@ -230,6 +231,7 @@ class PredNet(nn.Module):
 
         self.using_dist = using_dist
 
+        self.use_e_mental = use_e_mental
         self.basic_layer = basic_layer
         self.device = device
 
@@ -237,11 +239,14 @@ class PredNet(nn.Module):
         self.num_output_mental = num_output_mental
 
         self.charnet = CharNet(num_input, num_step=num_step, num_output=num_output_char, basic_layer=basic_layer, device=device)
-        self.mentalnet_traj = MentalNet(num_input, num_step, num_output=num_output_mental, basic_layer=basic_layer, device=device)
+        if self.use_e_mental:
+            self.mentalnet_traj = MentalNet(num_input, num_step, num_output=num_output_mental, basic_layer=basic_layer, device=device)
         self.mentalnet_demo = MentalNet(num_input, n_buttons, num_output=num_output_mental, basic_layer=basic_layer, device=device)
 
+        channel_in = 2 * num_output_mental + num_output_char if self.use_e_mental else num_output_mental + num_output_char
+
         if basic_layer == 'ResConv':
-            self.encoder = nn.Sequential(ResNetBlock(2 * num_output_mental + num_output_char, 8, 1).double().to(device),
+            self.encoder = nn.Sequential(ResNetBlock(channel_in, 8, 1).double().to(device),
                                          ResNetBlock(8, 16, 1).double().to(device),
                                          ResNetBlock(16, 16, 1).double().to(device),
                                          ResNetBlock(16, 32, 1).double().to(device),
@@ -260,7 +265,7 @@ class PredNet(nn.Module):
 
         elif basic_layer == 'Linear':
             self.encoder = nn.Sequential(nn.Flatten(),
-                                         nn.Linear(2 * num_output_mental + num_output_char, 8).double().to(device),
+                                         nn.Linear(channel_in, 8).double().to(device),
                                          nn.ReLU().double().to(device),
                                          nn.Linear(8, 16).double().to(device),
                                          nn.ReLU().double().to(device),
@@ -283,26 +288,29 @@ class PredNet(nn.Module):
                 e_char = e_char[..., None]
                 e_char = e_char.repeat(1, 1, n_buttons) # [batch, num_output_char, n_buttons]
 
-        # Current traj
-        _, num_step, _, _ = current_traj.shape
-        if num_step == 0:
-            e_mental = torch.zeros((batch_size, self.num_output_mental, n_buttons))
+        if self.use_e_mental:
+            # Current traj
+            _, num_step, _, _ = current_traj.shape
+            if num_step == 0:
+                e_mental = torch.zeros((batch_size, self.num_output_mental, n_buttons))
+            else:
+                e_mental = self.mentalnet_traj(current_traj) # [batch, num_output_mental, n_buttons]
         else:
-            e_mental = self.mentalnet_traj(current_traj)
-            if self.basic_layer == 'ResConv':
-                e_mental = e_mental.permute(0, 2, 1) # [batch, num_output_mental, n_buttons]
+            e_mental = torch.zeros((batch_size, self.num_output_mental, n_buttons))
 
         # Demonstration
         _, num_step, _, _ = current_traj.shape
         if num_step == 0:
             e_demo = torch.zeros((batch_size, self.num_output_mental, n_buttons))
         else:
-            e_demo = self.mentalnet_demo(demo)
-            if self.basic_layer == 'ResConv':
-                e_demo = e_demo.permute(0, 2, 1) # [batch, num_output_mental, n_buttons]
-
-        x_concat = torch.cat([e_char, e_mental, e_demo], axis=1) # [batch, num_output_char + num_output_mental * 2, n_buttons] or
-                                                                 # [batch, num_output_char + num_output_mental * 2]
+            e_demo = self.mentalnet_demo(demo) # [batch, num_output_mental, n_buttons]
+        
+        if self.use_e_mental:
+            x_concat = torch.cat([e_char, e_mental, e_demo], axis=1) # [batch, num_output_char + num_output_mental * 2, n_buttons] or
+                                                                    # [batch, num_output_char + num_output_mental * 2]
+        else:
+            x_concat = torch.cat([e_char, e_demo], axis=1) # [batch, num_output_char + num_output_mental, n_buttons] or
+                                                                    # [batch, num_output_char + num_output_mental]
 
         x = self.encoder(x_concat)
         action = self.action_head(x)
