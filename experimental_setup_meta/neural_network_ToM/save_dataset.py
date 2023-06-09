@@ -15,6 +15,8 @@ def parse_args():
     parser.add_argument('--n_agent_train', type=int, default=100)
     parser.add_argument('--n_agent_val', type=int, default=100)
     parser.add_argument('--n_agent_test', type=int, default=100)
+    parser.add_argument('--save_true_types', type=bool, default=False)
+    parser.add_argument('--varying_length', type=bool, default=False)
     parser.add_argument('--saving_name', type=str, default=None)
     args = parser.parse_args()
     return args
@@ -31,7 +33,8 @@ if __name__ == '__main__':
                 n_agent_train = args.n_agent_train,
                 n_agent_val = args.n_agent_val,
                 n_agent_test = args.n_agent_test,
-                true_types=True
+                true_types=args.save_true_types,
+                varying_length=args.varying_length
                 )
 
         # Storing
@@ -43,7 +46,9 @@ if __name__ == '__main__':
                 num_types=4,
                 num_agents=config['n_agent_train'],
                 num_demo_types=4,
-                min_steps=config['min_steps']
+                min_steps=config['min_steps'],
+                save_true_types=config['true_types'],
+                varying_length=config['varying_length']
                 )
         
         val_store = Storage(n_buttons=config['n_buttons'],
@@ -54,7 +59,9 @@ if __name__ == '__main__':
                 num_types=4,
                 num_agents=config['n_agent_val'],
                 num_demo_types=4,
-                min_steps=config['min_steps']
+                min_steps=config['min_steps'],
+                save_true_types=config['true_types'],
+                varying_length=config['varying_length']
                 )
 
         test_store = Storage(n_buttons=config['n_buttons'],
@@ -65,7 +72,9 @@ if __name__ == '__main__':
                 num_types=4,
                 num_agents=config['n_agent_test'],
                 num_demo_types=4,
-                min_steps=config['min_steps']
+                min_steps=config['min_steps'],
+                save_true_types=config['true_types'],
+                varying_length=False # Past trajectories of size max_steps for better analysis
                 )
 
         # Generate and save datasets
