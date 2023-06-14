@@ -225,6 +225,8 @@ class PredNet(nn.Module):
         
         super(PredNet, self).__init__()
 
+        self.with_mask = False
+
         self.num_types = num_types
         self.num_demo_types = num_demo_types
         self.n_buttons = n_buttons
