@@ -10,7 +10,9 @@ import torch.optim as optim
 from nn_utils import load_data, load_config, make_dirs
 from dataset import ToMNetDataset
 from torch.utils.data import DataLoader
-from model import PredNet
+
+from model_with_mask import PredNet
+# from model import PredNet
 
 def parse_args():
     parser = argparse.ArgumentParser('Training prediction model')
@@ -103,6 +105,8 @@ if __name__ == '__main__':
                       device=device,
                       using_dist=using_dist,
                       use_e_mental=use_e_mental)
+    
+    print(f'Model with maks: {prednet.with_mask}')
     
     optimizer = optim.Adam(prednet.parameters(), lr=learning_rate)
 
