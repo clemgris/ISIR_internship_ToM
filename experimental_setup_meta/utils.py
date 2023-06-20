@@ -84,3 +84,17 @@ def load_output(path: str) -> dict:
     data_dict = convert_to_array(data_dict)
     
     return data_dict
+
+# Distances
+
+def L2_dist(pred_policy: np.ndarray, true_policy: np.ndarray) -> float:
+    return np.sqrt(((pred_policy - true_policy)**2).sum())
+
+def L1_dist(pred_policy: np.ndarray, true_policy: np.ndarray) -> float:
+    return (np.abs(pred_policy - true_policy)).sum()
+
+def MSE_dist(pred_policy: np.ndarray, true_policy: np.ndarray) -> float:
+    return np.sum((pred_policy - true_policy)**2) / len(pred_policy)
+
+def SE_dist(pred_policy: np.ndarray, true_policy: np.ndarray) -> float:
+    return np.sum((pred_policy - true_policy)**2)
