@@ -4,6 +4,10 @@ The environment in this setup is a 1D tabular representation of a toy consisting
 In the experiment, the first phase involves one child (referred to as the teacher) observing another child (referred to as the learner) playing with the toy in a specific configuration (which determines the location of the M musical buttons). In the second phase, the toy is reset to a different configuration, and the teacher must demonstrate the minimum sequence of buttons to ensure that the learner only plays the musical buttons after observing the demonstration.
 # Learner
 We define different type of learner by the initial distributions over the possible configurations of the environement (beliefs) modelling prior on the number of musical buttons M of the toy.
+
+In 
+
+    learner.py
 # Teacher
 ## Bayesian ToM
 In
