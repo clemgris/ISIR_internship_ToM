@@ -28,4 +28,4 @@ All the experiments are conducted in the notebook
 
     experiments.ipynb
     
-We tried the robustness of both methods using useen learner type (out of the Bayesian belief's support and out of the training set) as we tested the adaptability of the teacher opposed to a changeable learner. This notebook also includes the evaluation of the different teachers.
+We tried the robustness of both methods using useen learner type (out of the Bayesian belief's support and out of the training set) and we tested the adaptability of the teacher opposed to a changeable learner. This notebook also includes the evaluation of the different teachers.
