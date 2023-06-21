@@ -5,19 +5,16 @@ In the experiment, the first phase involves one child (referred to as the teache
 # Learner
 We define different type of learner by the initial distributions over the possible configurations of the environement (beliefs) modelling prior on the number of musical buttons M of the toy.
 
-In 
 
     learner.py
 # Teacher
 ## Bayesian ToM
-In
 
     bayesian_ToM.py
     
 We implemented the Theory of Mind (ToM) mechanism as a Bayesian process. The teacher maintains a belief (probability distribution) over a finite and known set of possible learner types and updates these beliefs based on observations of the learner in the first phase.
 In the second phase, the teacher selects the demonstration to show based on its beliefs, using either maximum a posteriori or weighted maximum utility criteria.
 ## ToMNet
-In 
 
     neural_network_ToM.py
     
