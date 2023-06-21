@@ -17,7 +17,7 @@ In
 
     neural_network_ToM.py
     
-We modelled ToM mechanism using a policy prediction model proposed by Neil C. Rabinowitz et al. (2018) in the paper [Machine theory of mind](https://arxiv.org/abs/1802.07740). The model takes as inputs previous trajectories of the learner in different environenments (toy configurations) and a possible demonstration and outputs the predicted policy of the learner.
+We modelled ToM mechanism using an adapted version of the policy prediction model ToMNet proposed by Neil C. Rabinowitz et al. (2018) in the paper [Machine theory of mind](https://arxiv.org/abs/1802.07740). The model takes as inputs previous trajectories of the learner in different environenments (toy configurations) and a possible demonstration for the second environment and outputs the predicted policy of the learner on the second environment after seen the demonstrattion.
 In the second phase, the teacher choses the demonstration that maximizes their utility (reward of the learner minus the cost of showing the demonstration) based on the predicted reward derived from prediction model. This replication of the planning mechanism behind Theory of Mind aligns with the concept discussed by Mark K.Ho in the papper (2022) [People construct simplified mental representations to plan](https://arxiv.org/abs/2105.06948).
 ### Data generation
      python save_dataset.py --n_buttons 20 --n_music 3 --num_past 1 --max_steps 50 --max_steps_current 0 --n_agent_train 1000 --n_agent_test 100 --n_agent_val 100 --saving_name dataset
